@@ -10,6 +10,15 @@ on:
       - 'capacitor.config.json'
       - 'src/**'
       - '.github/workflows/mobile-validation-original.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'index.html'
+      - 'package.json'
+      - 'capacitor.config.json'
+      - 'src/**'
+      - '.github/workflows/mobile-validation-original.yml'
   workflow_dispatch:
 permissions:
   contents: write
