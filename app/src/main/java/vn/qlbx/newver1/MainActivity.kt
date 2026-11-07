@@ -105,7 +105,7 @@ private fun QlbxApp() {
                     Spacer(Modifier.height(14.dp))
                     when (selected) {
                         "Nhập/Xuất" -> MovementScreen(store, yardStore, vehicles)
-                        "Tìm xe" -> VehicleSearchScreen(store, vehicles)
+                        "Tìm xe" -> VehicleSearchScreen(store, yardStore, vehicles)
                         "Báo cáo" -> ReportsScreen(vehicles, movements, eventStore)
                         "Sơ đồ bãi" -> YardScreen(yardStore, store, vehicles)
                         "Hệ thống" -> SettingsScreen(userEmail, store, yardStore, eventStore, vehicles) {
@@ -226,7 +226,7 @@ private fun MovementScreen(store: VehicleStore, yard: YardStore, vehicles: List<
 }
 
 @Composable
-private fun VehicleSearchScreen(store: VehicleStore, vehicles: List<Vehicle>) {
+private fun VehicleSearchScreen(store: VehicleStore, yard: YardStore, vehicles: List<Vehicle>) {
     var query by remember { mutableStateOf("") }
     var showAll by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<Vehicle?>(null) }
@@ -302,6 +302,7 @@ private fun VehicleSearchScreen(store: VehicleStore, vehicles: List<Vehicle>) {
             confirmButton = {
                 TextButton(onClick = {
                     val result = store.delete(selected!!.id)
+                    if (result.isSuccess) yard.clearVehicle(selected!!.id)
                     message = result.fold({ "Đã xóa bản ghi xe." }, { it.message ?: "Không thể xóa." })
                     selected = null; deleteStage = 0
                 }) { Text("XÓA VĨNH VIỄN") }
