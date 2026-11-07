@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function activeUser() { return signedIn() && profile().active == true; }
+    function role() { return profile().role; }
+    function canRead() { return activeUser() && role() in ['super_admin', 'admin', 'operator', 'viewer']; }
+    function canOperate() { return activeUser() && role() in ['super_admin', 'admin', 'operator']; }
+    function canAdmin() { return activeUser() && role() in ['super_admin', 'admin']; }
+    function superAdmin() { return activeUser() && role() == 'super_admin'; }
+
+    match /users/{uid} {
+      allow read: if activeUser() && (request.auth.uid == uid || canAdmin());
+      allow create, update, delete: if superAdmin();
+    }
+
+    match /yards/{yardId}/vehicles/{vehicleId} {
+      allow read: if canRead();
+      allow create, update, delete: if canOperate();
+    }
+    match /yards/{yardId}/activeIdentifiers/{identifierId} {
+      allow read: if canRead();
+      allow create, update, delete: if canOperate();
+    }
+    match /yards/{yardId}/movements/{movementId} {
+      allow read: if canRead();
+      allow create: if canOperate();
+      allow update, delete: if canAdmin();
+    }
+    match /yards/{yardId}/logs/{logId} {
+      allow read: if canRead();
+      allow create: if canOperate();
+      allow update, delete: if canAdmin();
+    }
+    match /yards/{yardId}/slots/{slotId} {
+      allow read: if canRead();
+      allow create, update, delete: if canAdmin();
+    }
+    match /yards/{yardId}/events/{eventId} {
+      allow read: if canRead();
+      allow create, update, delete: if canAdmin();
+    }
+    match /yards/{yardId}/catalogs/{catalogId} {
+      allow read: if canRead();
+      allow create, update, delete: if canAdmin();
+    }
+    match /yards/{yardId}/meta/{documentId} {
+      allow read: if canRead();
+      allow write: if canAdmin();
+    }
+  }
+}
