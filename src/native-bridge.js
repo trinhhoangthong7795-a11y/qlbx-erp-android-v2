@@ -22,7 +22,7 @@ const firestore = getFirestore(firebaseApp);
 const cloudState = { user: null, profile: null, ready: false };
 let resolveAuthReady;
 const authReady = new Promise(resolve => { resolveAuthReady = resolve; });
-setPersistence(auth, indexedDBLocalPersistence).catch(error => {
+const persistenceReady = setPersistence(auth, indexedDBLocalPersistence).catch(error => {
   console.warn('Firebase persistence fallback:', error);
 });
 onAuthStateChanged(auth, async user => {
@@ -58,6 +58,7 @@ async function requireProfile() {
   return cloudState.profile;
 }
 async function login(email, password) {
+  await persistenceReady;
   const credential = await signInWithEmailAndPassword(auth, email, password);
   const snap = await getDoc(doc(firestore, 'users', credential.user.uid));
   const profile = snap.exists() ? snap.data() : null;
