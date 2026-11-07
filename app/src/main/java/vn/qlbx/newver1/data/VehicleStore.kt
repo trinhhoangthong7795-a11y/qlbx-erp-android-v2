@@ -24,9 +24,26 @@ class VehicleStore(context: Context) {
                 if (VehicleRules.isDuplicateActive(validation.vehicle, mutableVehicles.value)) {
                     Result.failure(IllegalStateException("Xe này đang có trong bãi."))
                 } else {
-                    mutableVehicles.value = listOf(validation.vehicle) + mutableVehicles.value
+                    val previous = mutableVehicles.value.firstOrNull { old ->
+                        old.status == VehicleStatus.EXITED &&
+                            old.identityType == validation.vehicle.identityType &&
+                            if (old.identityType == IdentityType.PLATE) old.plate.equals(validation.vehicle.plate, true) else old.vinLast6 == validation.vehicle.vinLast6
+                    }
+                    val now = System.currentTimeMillis()
+                    val saved = if (previous != null) previous.copy(
+                        model = validation.vehicle.model.ifBlank { previous.model },
+                        color = validation.vehicle.color.ifBlank { previous.color },
+                        department = validation.vehicle.department.ifBlank { previous.department },
+                        team = validation.vehicle.team.ifBlank { previous.team },
+                        entryAt = now, entryPerson = validation.vehicle.entryPerson,
+                        exitAt = null, exitPerson = "", status = VehicleStatus.INSIDE,
+                        currentSlotId = null, updatedAt = now
+                    ) else validation.vehicle
+                    mutableVehicles.value = if (previous != null) {
+                        listOf(saved) + mutableVehicles.value.filterNot { it.id == previous.id }
+                    } else listOf(saved) + mutableVehicles.value
                     persist()
-                    Result.success(validation.vehicle)
+                    Result.success(saved)
                 }
             }
         }
