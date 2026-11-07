@@ -65,7 +65,7 @@ fun YardScreen(yard: YardStore, vehicleStore: VehicleStore, vehicles: List<Vehic
         }
     }
     if (showWaiting && selectedSlot != null) {
-        val waiting = vehicles.filter { it.status != VehicleStatus.EXITED && it.currentSlotId == null }
+        val waiting = vehicles.filter { it.status != VehicleStatus.EXITED }
         AlertDialog(
             onDismissRequest = { showWaiting = false; selectedSlot = null },
             title = { Text("Chọn xe vào ô ${selectedSlot!!.label}") },
@@ -97,7 +97,17 @@ fun YardScreen(yard: YardStore, vehicleStore: VehicleStore, vehicles: List<Vehic
                     selectedSlot = null
                 }, enabled = vehicle != null) { Text("Chuyển về chờ") }
             },
-            dismissButton = { TextButton(onClick = { selectedSlot = null }) { Text("Đóng") } }
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        val result = vehicle?.let { vehicleStore.exit(it.id) }
+                        if (result?.isSuccess == true) yard.clearVehicle(vehicle!!.id)
+                        feedback = result?.fold({ "Đã xuất bãi: " + (it.plate ?: it.vinLast6) }, { it.message ?: "Không thể xuất xe." })
+                        selectedSlot = null
+                    }, enabled = vehicle != null) { Text("Xuất bãi") }
+                    TextButton(onClick = { selectedSlot = null }) { Text("Đóng") }
+                }
+            }
         )
     }
 }
