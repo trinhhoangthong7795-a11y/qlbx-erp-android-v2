@@ -101,6 +101,16 @@ class YardStore(context: Context) {
         return Result.success(Unit)
     }
 
+    @Synchronized
+    fun replaceAll(replacement: List<YardSlot>): Result<Unit> {
+        if (replacement.map { it.id }.distinct().size != replacement.size) return Result.failure(IllegalArgumentException("Sơ đồ bãi có ID ô trùng nhau."))
+        val occupied = replacement.mapNotNull { it.vehicleId }
+        if (occupied.distinct().size != occupied.size) return Result.failure(IllegalArgumentException("Một xe không thể chiếm nhiều ô."))
+        mutableSlots.value = replacement
+        persist()
+        return Result.success(Unit)
+    }
+
     private fun makeRow(row: Int): List<YardSlot> = (1..4).flatMap { lane -> (1..20).map { pos -> makeSlot(row, lane, pos) } }
     private fun makeSlot(row: Int, lane: Int, pos: Int) = YardSlot("$row-$lane-$pos", row, lane, pos, "$row${laneNames[lane - 1]}-$pos")
 
