@@ -52,16 +52,18 @@ class VehicleStore(context: Context) {
         return Result.success(updated)
     }
 
-    @Synchronized fun replaceAll(replacement: List<Vehicle>): Result<Unit> {
+    @Synchronized fun replaceAll(replacement: List<Vehicle>): Result<Unit> = replaceAll(replacement, emptyList())
+
+    @Synchronized fun replaceAll(replacement: List<Vehicle>, movementHistory: List<VehicleMovement>): Result<Unit> {
         if (replacement.map { it.id }.distinct().size != replacement.size) return Result.failure(IllegalArgumentException("Tệp có ID xe trùng nhau."))
         val activeKeys = replacement.filter { it.status != VehicleStatus.EXITED }.map { if (it.identityType == IdentityType.PLATE) "P:${it.plate?.uppercase()}" else "V:${it.vinLast6}" }
         if (activeKeys.distinct().size != activeKeys.size) return Result.failure(IllegalArgumentException("Có xe đang trong bãi bị trùng biển số/VIN."))
+        if (movementHistory.any { event -> replacement.none { it.id == event.vehicleId } }) return Result.failure(IllegalArgumentException("Nhật ký tham chiếu đến xe không tồn tại."))
         mutableVehicles.value = replacement.sortedByDescending { it.entryAt }
-        mutableMovements.value = emptyList()
+        mutableMovements.value = movementHistory.sortedByDescending { it.occurredAt }
         persist()
         return Result.success(Unit)
     }
-
     @Synchronized fun update(updated: Vehicle): Result<Vehicle> {
         val old = mutableVehicles.value.firstOrNull { it.id == updated.id }
             ?: return Result.failure(NoSuchElementException("Không tìm thấy xe."))
