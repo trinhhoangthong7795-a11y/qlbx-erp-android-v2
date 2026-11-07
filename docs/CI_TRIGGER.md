@@ -5,3 +5,4 @@ Retry after narrowing SDK packages.
 Retry build with Kotlin 2.4.0 for Firebase Auth binary compatibility.
 Retry after migrating to Kotlin compilerOptions DSL.
 Retry with in-process Kotlin compilation to avoid daemon stalls.
+Use the standard Kotlin daemon strategy, previously proven by the passing baseline build.
