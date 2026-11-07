@@ -52,6 +52,45 @@ class VehicleStore(context: Context) {
         return Result.success(updated)
     }
 
+    @Synchronized
+    fun replaceAll(replacement: List<Vehicle>): Result<Unit> {
+        if (replacement.map { it.id }.distinct().size != replacement.size) {
+            return Result.failure(IllegalArgumentException("Tệp có ID xe trùng nhau."))
+        }
+        val activeKeys = replacement.filter { it.status != VehicleStatus.EXITED }.map {
+            if (it.identityType == IdentityType.PLATE) "P:${it.plate?.uppercase()}" else "V:${it.vinLast6}"
+        }
+        if (activeKeys.distinct().size != activeKeys.size) {
+            return Result.failure(IllegalArgumentException("Có xe đang trong bãi bị trùng biển số/VIN."))
+        }
+        mutableVehicles.value = replacement.sortedByDescending { it.entryAt }
+        persist()
+        return Result.success(Unit)
+    }
+
+    @Synchronized
+    fun update(updated: Vehicle): Result<Vehicle> {
+        val old = mutableVehicles.value.firstOrNull { it.id == updated.id }
+            ?: return Result.failure(NoSuchElementException("Không tìm thấy xe."))
+        if (VehicleRules.isDuplicateActive(updated, mutableVehicles.value)) {
+            return Result.failure(IllegalStateException("Biển số/VIN đang được xe khác sử dụng trong bãi."))
+        }
+        val saved = updated.copy(updatedAt = System.currentTimeMillis())
+        mutableVehicles.value = mutableVehicles.value.map { if (it.id == old.id) saved else it }
+        persist()
+        return Result.success(saved)
+    }
+
+    @Synchronized
+    fun delete(vehicleId: String): Result<Unit> {
+        if (mutableVehicles.value.none { it.id == vehicleId }) {
+            return Result.failure(NoSuchElementException("Không tìm thấy xe."))
+        }
+        mutableVehicles.value = mutableVehicles.value.filterNot { it.id == vehicleId }
+        persist()
+        return Result.success(Unit)
+    }
+
     fun search(query: String): List<Vehicle> {
         val q = query.trim().uppercase()
         if (q.isBlank()) return mutableVehicles.value
