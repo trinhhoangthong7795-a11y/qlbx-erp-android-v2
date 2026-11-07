@@ -1,0 +1,35 @@
+name: Audit uploaded QLBX ERP v1.2.2
+on:
+  push:
+    branches:
+      - erp-group/audit-upload-v1.2.2
+    paths:
+      - '.github/workflows/audit-upload.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: erp-group/audit-upload-v1.2.2
+          persist-credentials: true
+      - name: Extract uploaded original
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p original-upload
+          unzip -oq QLBX_ERP_v1.2.2.zip -d original-upload
+          echo "=== UPLOADED ARCHIVE CONTENTS ==="
+          find original-upload -type f -maxdepth 3 -print
+          echo "=== FILE TYPES ==="
+          file original-upload/*
+          echo "=== HTML SIZE ==="
+          wc -c original-upload/*.html
+          git config user.name "ERP Group"
+          git config user.email "erp-group@users.noreply.github.com"
+          git add original-upload
+          git commit -m "Extract uploaded original QLBX ERP v1.2.2" || exit 0
+          git push origin HEAD:erp-group/audit-upload-v1.2.2
