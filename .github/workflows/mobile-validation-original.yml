@@ -1,4 +1,5 @@
 name: QLBX ERP Android validation from original
+run-name: Validate uploaded original v1.2.2
 on:
   push:
     branches:
