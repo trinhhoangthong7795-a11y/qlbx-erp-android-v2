@@ -1,0 +1,20 @@
+{
+  "name": "qlbx-erp-android",
+  "version": "1.2.2",
+  "private": true,
+  "description": "QLBX ERP Android wrapper using Capacitor 7",
+  "scripts": {
+    "build": "vite build",
+    "test": "node -e \"const fs=require('fs'); if(!fs.existsSync('index.html')) process.exit(1); console.log('Source HTML found');\""
+  },
+  "dependencies": {
+    "@capacitor/core": "latest-7",
+    "@capacitor/filesystem": "latest-7",
+    "@capacitor/share": "latest-7"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "latest-7",
+    "@capacitor/android": "latest-7",
+    "vite": "^6.4.1"
+  }
+}
