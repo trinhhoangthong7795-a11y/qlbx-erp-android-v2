@@ -10,6 +10,7 @@ on:
       - 'src/**'
       - 'scripts/**'
       - 'firestore.rules'
+      - 'firebase.json'
       - '.github/workflows/**'
 concurrency:
   group: qlbx-pr-android-${{ github.event.pull_request.number }}
