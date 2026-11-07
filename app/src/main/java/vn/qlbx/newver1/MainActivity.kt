@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalParking
@@ -44,7 +45,7 @@ class MainActivity : ComponentActivity() {
 private fun QlbxApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val store = remember { VehicleStore(context) }
-    val yardStore = remember { YardStore(context) }
+    val yardStore = remember { YardStore(context) }\n    val eventStore = remember { SpecialEventStore(context) }\n    val movements by store.movements.collectAsState()
     val vehicles by store.vehicles.collectAsState()
     var selected by remember { mutableStateOf("Tổng quan") }
     var signedIn by remember { mutableStateOf(false) }
