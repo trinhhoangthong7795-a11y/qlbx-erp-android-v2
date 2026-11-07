@@ -31,8 +31,6 @@ class YardStore(context: Context) {
         val vehicle = vehicleStore.vehicles.value.firstOrNull { it.id == vehicleId }
             ?: return Result.failure(NoSuchElementException("Không tìm thấy xe."))
         if (vehicle.status == VehicleStatus.EXITED) return Result.failure(IllegalStateException("Xe đã xuất bãi."))
-        val occupiedElsewhere = mutableSlots.value.firstOrNull { it.vehicleId == vehicleId && it.id != slotId }
-        if (occupiedElsewhere != null) return Result.failure(IllegalStateException("Xe đang nằm ở ô ${occupiedElsewhere.label}."))
         val updated = vehicle.copy(currentSlotId = slotId, status = VehicleStatus.INSIDE)
         vehicleStore.update(updated).getOrElse { return Result.failure(it) }
         mutableSlots.value = mutableSlots.value.map { s ->
