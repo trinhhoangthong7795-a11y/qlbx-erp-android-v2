@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function activeUser() {
+      return signedIn() && profile().active == true;
+    }
+    function canWrite() {
+      return activeUser() && profile().role in ['super_admin', 'admin', 'operator'];
+    }
+    function canAdmin() {
+      return activeUser() && profile().role in ['super_admin', 'admin'];
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || canAdmin());
+      // Roles and active status must be assigned by an administrator in Firebase Console.
+      allow create, update, delete: if canAdmin() && request.resource.data.role in ['super_admin', 'admin', 'operator', 'viewer'];
+    }
+
+    match /yards/{yardId}/{collection}/{docId} {
+      allow read: if activeUser() && collection in ['vehicles', 'logs', 'slots', 'events', 'meta'];
+      allow create, update, delete: if canWrite() && collection in ['vehicles', 'logs', 'slots', 'events', 'meta'];
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
