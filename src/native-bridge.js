@@ -45,6 +45,7 @@ onAuthStateChanged(auth, async user => {
   cloudState.ready = true;
   resolveAuthReady();
   renderCloudUI();
+  window.dispatchEvent(new CustomEvent('qlbx-auth-state', { detail: { authenticated: !!cloudState.user, active: !!cloudState.profile?.active } }));
 });
 function renderCloudUI() {
   const status = document.getElementById('cloud-status');
