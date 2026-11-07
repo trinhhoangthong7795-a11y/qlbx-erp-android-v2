@@ -1,0 +1,84 @@
+name: QLBX ERP mobile validation
+on:
+  push:
+    branches:
+      - erp-group/mobile-v1.2.2
+    paths:
+      - 'index.html'
+      - 'package.json'
+      - 'capacitor.config.json'
+      - 'src/**'
+      - '.github/workflows/mobile-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+actions: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+        with:
+          ref: erp-group/mobile-v1.2.2
+          persist-credentials: true
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run source test
+        run: npm test
+      - name: Build web app
+        run: npm run build
+      - name: Add Android platform
+        run: npx cap add android
+      - name: Sync Android platform
+        run: npx cap sync android
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+      - name: Prepare validation report
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# QLBX ERP v1.2.2 – Android validation"
+            echo
+            echo "- Branch: erp-group/mobile-v1.2.2"
+            echo "- Commit: $GITHUB_SHA"
+            echo "- Node: $(node --version 2>/dev/null || true)"
+            echo "- Java: $(java -version 2>&1 | head -n 1 || true)"
+            if [ -f dist/index.html ]; then echo "- Vite build: PASS"; else echo "- Vite build: FAIL or not reached"; fi
+            if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
+              echo "- Android APK: PASS"
+              echo "- APK size: $(du -h android/app/build/outputs/apk/debug/app-debug.apk | cut -f1)"
+            else
+              echo "- Android APK: FAIL or not reached"
+            fi
+          } > MOBILE_VALIDATION_REPORT.md
+      - name: Upload APK and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qlbx-erp-android-validation
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            MOBILE_VALIDATION_REPORT.md
+          if-no-files-found: warn
+      - name: Commit validation report
+        if: always()
+        shell: bash
+        run: |
+          git config user.name "ERP Group"
+          git config user.email "erp-group@users.noreply.github.com"
+          git add MOBILE_VALIDATION_REPORT.md
+          git commit -m "Record Android validation result" || exit 0
+          git push origin HEAD:erp-group/mobile-v1.2.2
