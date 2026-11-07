@@ -353,7 +353,7 @@ private fun SettingsScreen(email: String, store: VehicleStore, yardStore: YardSt
             .onFailure { status = "Không thể đọc Excel: ${it.message}" }
     }
     val importJson = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) runCatching { AppBackupFileManager.import(context.contentResolver, uri) }
+        if (uri != null) runCatching { AppBackupFileManager.readBackup(context.contentResolver, uri) }
             .onSuccess { pendingRestore = it; pendingLabel = "JSON đầy đủ"; status = "Đã kiểm tra ${it.vehicles.size} xe, ${it.movements.size} nhật ký, ${it.slots.size} ô và ${it.events.size} sự kiện." }
             .onFailure { status = "Không thể đọc bản sao lưu: ${it.message}" }
     }
