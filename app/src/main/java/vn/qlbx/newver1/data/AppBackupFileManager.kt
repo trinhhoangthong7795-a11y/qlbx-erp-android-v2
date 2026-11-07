@@ -74,7 +74,6 @@ object AppBackupFileManager {
             VehicleMovement(o.optString("id"), o.getString("vehicleId"), o.getString("action"), o.optLong("occurredAt"),
                 o.optString("identifier"), o.optString("model"), o.optString("person"), o.optString("note"))
         }
-        require(movements.all { m -> vehicles.any { it.id == m.vehicleId } }) { "Nhật ký chứa xe không tồn tại trong bản sao lưu." }
         val slotArray = root.optJSONArray("slots") ?: JSONArray()
         val slots = (0 until slotArray.length()).map { i ->
             val o = slotArray.getJSONObject(i)
