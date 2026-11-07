@@ -66,8 +66,13 @@ function renderCloudUI() {
   if (upload) upload.hidden = !cloudState.user || !['super_admin', 'admin', 'operator'].includes(cloudState.profile?.role);
   if (logoutButton) logoutButton.hidden = !cloudState.user;
 }
+// Watch only direct content replacements inside the app view. Do not observe the whole
+// document subtree: renderCloudUI mutates nested status/account nodes and would otherwise
+// trigger itself forever, freezing the WebView main thread.
+const cloudContent = document.getElementById('app-content');
 const cloudUiObserver = new MutationObserver(() => renderCloudUI());
-cloudUiObserver.observe(document.body, { childList: true, subtree: true });
+if (cloudContent) cloudUiObserver.observe(cloudContent, { childList: true });
+renderCloudUI();
 
 async function requireProfile() {
   await authReady;
