@@ -10,6 +10,7 @@ check('HTML entry point', html.includes('<html') && html.includes('QLBX ERP'));
 check('IndexedDB local persistence', html.includes("indexedDB.open('qlbx_erp'"));
 check('Mobile viewport safe area', html.includes('viewport-fit=cover'));
 check('Mobile navigation and responsive hardening', html.includes('mobile-nav') && html.includes('Android/mobile hardening'));
+check('Navigation uses a collection selector for all view buttons', html.includes("$('[data-view]').forEach") && !html.includes("$('[data-view]').forEach"));
 check('Capacitor native bridge loaded', html.includes('src/native-bridge.js'));
 check('Firebase SDK dependency', !!pkg.dependencies?.firebase);
 check('Firebase Email/Password auth implementation', bridge.includes('signInWithEmailAndPassword'));
