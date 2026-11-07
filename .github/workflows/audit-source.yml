@@ -7,30 +7,33 @@ on:
       - '.github/workflows/audit-source.yml'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Inspect source archive
+        with:
+          ref: erp-group/source-audit
+          persist-credentials: true
+      - name: Extract source archive on isolated branch
         shell: bash
         run: |
           set -euo pipefail
           archive="QLBX_ERP_Android_Source_v1.2.zip"
           test -f "$archive"
-          echo "=== ARCHIVE FILE ==="
-          ls -lh "$archive"
-          echo "=== ZIP ROOT ==="
-          unzip -Z1 "$archive" | sed -n '1,100p'
-          echo "=== SOURCE MANIFESTS ==="
-          mkdir -p /tmp/qlbx-source
-          unzip -q "$archive" -d /tmp/qlbx-source
-          find /tmp/qlbx-source -maxdepth 4 -type f | sort | sed -n '1,160p'
-          echo "=== PACKAGE JSON ==="
-          find /tmp/qlbx-source -name package.json -print -exec cat {} \; || true
-          echo "=== README FILES ==="
-          find /tmp/qlbx-source -iname 'readme*' -print -exec sed -n '1,220p' {} \; || true
-          echo "=== HTML ENTRY FILES ==="
-          find /tmp/qlbx-source -name '*.html' -maxdepth 5 -print
+          mkdir -p source-audit
+          unzip -oq "$archive" -d source-audit
+          echo "=== EXTRACTED FILES ==="
+          find source-audit -type f | sort
+          echo "=== MANIFESTS ==="
+          find source-audit -name package.json -print -exec cat {} \; || true
+          find source-audit -iname 'readme*' -print -exec sed -n '1,240p' {} \; || true
+          git config user.name "ERP Group"
+          git config user.email "erp-group@users.noreply.github.com"
+          git add source-audit
+          if ! git diff --cached --quiet; then
+            git commit -m "Extract original QLBX source for review"
+            git push origin HEAD:erp-group/source-audit
+          fi
