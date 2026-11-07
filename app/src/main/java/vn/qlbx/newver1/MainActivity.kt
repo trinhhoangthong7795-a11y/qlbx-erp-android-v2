@@ -48,8 +48,6 @@ private fun QlbxApp() {
     val yardStore = remember { YardStore(context) }
     val eventStore = remember { SpecialEventStore(context) }
     val movements by store.movements.collectAsState()
-    val eventStore = remember { SpecialEventStore(context) }
-    val movements by store.movements.collectAsState()
     val vehicles by store.vehicles.collectAsState()
     var selected by remember { mutableStateOf("Tổng quan") }
     var signedIn by remember { mutableStateOf(false) }
