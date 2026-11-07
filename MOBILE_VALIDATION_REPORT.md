@@ -2,23 +2,31 @@
 
 - Source baseline: uploaded QLBX_ERP_v1.2.2.html
 - Working branch: erp-group/mobile-from-original-v1.2.2
-- Commit: bcd7ef3b4f07283aaec9a31ee69c460a9432fa55
-- npm install: success
+- Commit: af35ae6548922b05bac191ad496b52396d2ede98
+- npm install: failure
 - npm test: success
-- Vite build: success
-- Capacitor Android add: success
-- Capacitor sync: success
-- Gradle APK build: success
+- Vite build: failure
+- Capacitor Android add: failure
+- Capacitor sync: failure
+- Gradle APK build: skipped
 
 ## Resolved package versions
 qlbx-erp-android@1.2.2 /home/runner/work/qlbx-erp-android-v2/qlbx-erp-android-v2
-├── @capacitor/android@7.6.10
-├── @capacitor/cli@7.6.10
-├── @capacitor/core@7.6.10
-├── @capacitor/filesystem@7.1.9
-├── @capacitor/share@7.0.4
-└── vite@6.4.5
+├── UNMET DEPENDENCY @capacitor/android@7.4.3
+├── UNMET DEPENDENCY @capacitor/cli@7.4.3
+├── UNMET DEPENDENCY @capacitor/core@7.4.3
+├── UNMET DEPENDENCY @capacitor/filesystem@7.4.3
+├── UNMET DEPENDENCY @capacitor/share@7.4.3
+└── UNMET DEPENDENCY vite@6.4.1
 
+npm error code ELSPROBLEMS
+npm error missing: @capacitor/android@7.4.3, required by qlbx-erp-android@1.2.2
+npm error missing: @capacitor/cli@7.4.3, required by qlbx-erp-android@1.2.2
+npm error missing: @capacitor/core@7.4.3, required by qlbx-erp-android@1.2.2
+npm error missing: @capacitor/filesystem@7.4.3, required by qlbx-erp-android@1.2.2
+npm error missing: @capacitor/share@7.4.3, required by qlbx-erp-android@1.2.2
+npm error missing: vite@6.4.1, required by qlbx-erp-android@1.2.2
+npm error A complete log of this run can be found in: /home/runner/.npm/_logs/2026-11-07T13_33_04_694Z-debug-0.log
 
-- dist/index.html: present
-- APK size: 4.1M
+- dist/index.html: missing
+- APK: not generated
