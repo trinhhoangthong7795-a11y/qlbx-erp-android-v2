@@ -15,6 +15,7 @@ check('Firebase SDK dependency', !!pkg.dependencies?.firebase);
 check('Firebase Email/Password auth implementation', bridge.includes('signInWithEmailAndPassword'));
 check('Firestore explicit cloud backup and restore', bridge.includes('replaceCloud') && bridge.includes('restoreCloud'));
 check('Role and active-account enforcement', bridge.includes('profile?.active') && bridge.includes('viewer'));
+check('Firebase UI observer cannot create a WebView mutation loop', bridge.includes('cloudUiObserver.observe(cloudContent, { childList: true })') && !bridge.includes('observe(document.body, { childList: true, subtree: true })'));
 check('Firestore deny-by-default rules', rules.includes('allow read, write: if false'));
 for (const [name, ok] of checks) console.log((ok ? 'PASS ' : 'FAIL ') + name);
 if (checks.some(([, ok]) => !ok)) process.exit(1);
