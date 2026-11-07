@@ -68,13 +68,22 @@ class VehicleStore(context: Context) {
         if (VehicleRules.isDuplicateActive(updated, mutableVehicles.value)) return Result.failure(IllegalStateException("Biển số/VIN đang được xe khác sử dụng trong bãi."))
         val saved = updated.copy(updatedAt = System.currentTimeMillis())
         mutableVehicles.value = mutableVehicles.value.map { if (it.id == old.id) saved else it }
+        mutableMovements.value = listOf(VehicleMovement(
+            vehicleId = saved.id, action = "EDIT", identifier = saved.plate ?: saved.vinLast6.orEmpty(),
+            model = saved.model, note = "Cập nhật thông tin xe; trạng thái: ${old.status} → ${saved.status}"
+        )) + mutableMovements.value
         persist()
         return Result.success(saved)
     }
 
     @Synchronized fun delete(vehicleId: String): Result<Unit> {
         if (mutableVehicles.value.none { it.id == vehicleId }) return Result.failure(NoSuchElementException("Không tìm thấy xe."))
+        val removed = mutableVehicles.value.first { it.id == vehicleId }
         mutableVehicles.value = mutableVehicles.value.filterNot { it.id == vehicleId }
+        mutableMovements.value = listOf(VehicleMovement(
+            vehicleId = removed.id, action = "DELETE", identifier = removed.plate ?: removed.vinLast6.orEmpty(),
+            model = removed.model, note = "Xóa vĩnh viễn bản ghi xe"
+        )) + mutableMovements.value
         persist()
         return Result.success(Unit)
     }
