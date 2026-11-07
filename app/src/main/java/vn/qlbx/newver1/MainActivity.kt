@@ -45,7 +45,11 @@ class MainActivity : ComponentActivity() {
 private fun QlbxApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val store = remember { VehicleStore(context) }
-    val yardStore = remember { YardStore(context) }\n    val eventStore = remember { SpecialEventStore(context) }\n    val movements by store.movements.collectAsState()
+    val yardStore = remember { YardStore(context) }
+    val eventStore = remember { SpecialEventStore(context) }
+    val movements by store.movements.collectAsState()
+    val eventStore = remember { SpecialEventStore(context) }
+    val movements by store.movements.collectAsState()
     val vehicles by store.vehicles.collectAsState()
     var selected by remember { mutableStateOf("Tổng quan") }
     var signedIn by remember { mutableStateOf(false) }
@@ -82,6 +86,7 @@ private fun QlbxApp() {
                 Triple("Nhập/Xuất", Icons.Default.DirectionsCar, "movement"),
                 Triple("Sơ đồ bãi", Icons.Default.LocalParking, "yard"),
                 Triple("Tìm xe", Icons.Default.Search, "search"),
+                Triple("Báo cáo", Icons.Default.Assessment, "reports"),
                 Triple("Hệ thống", Icons.Default.Settings, "settings")
             )
             Scaffold(
@@ -102,6 +107,7 @@ private fun QlbxApp() {
                     when (selected) {
                         "Nhập/Xuất" -> MovementScreen(store, yardStore, vehicles)
                         "Tìm xe" -> VehicleSearchScreen(store, vehicles)
+                        "Báo cáo" -> ReportsScreen(vehicles, movements, eventStore)
                         "Sơ đồ bãi" -> YardScreen(yardStore, store, vehicles)
                         "Hệ thống" -> SettingsScreen(userEmail, store, vehicles) {
                             runCatching { FirebaseAuth.getInstance().signOut() }
@@ -190,6 +196,7 @@ private fun MovementScreen(store: VehicleStore, yard: YardStore, vehicles: List<
                         }
                         TextButton(onClick = {
                             val r = store.exit(v.id)
+                            if (r.isSuccess) yard.clearVehicle(v.id)
                             message = r.fold({ "Đã xuất bãi: " + (it.plate ?: it.vinLast6) }, { it.message })
                         }) { Text("Xuất bãi") }
                     }
@@ -239,12 +246,54 @@ private fun YardPlaceholder(vehicles: List<Vehicle>) {
 }
 
 @Composable
-private fun SettingsScreen(email: String, onLogout: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+private fun SettingsScreen(email: String, store: VehicleStore, vehicles: List<Vehicle>, onLogout: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var pendingRestore by remember { mutableStateOf<List<Vehicle>?>(null) }
+    var pendingLabel by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf<String?>(null) }
+    val exportXlsx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) { uri ->
+        if (uri != null) status = runCatching { VehicleFileManager.exportXlsx(context.contentResolver, uri, vehicles); "Đã xuất Excel thành công (${vehicles.size} xe)." }.getOrElse { "Xuất Excel thất bại: ${it.message}" }
+    }
+    val exportJson = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) status = runCatching { VehicleFileManager.exportJson(context.contentResolver, uri, vehicles); "Đã tạo bản sao lưu JSON (${vehicles.size} xe)." }.getOrElse { "Sao lưu thất bại: ${it.message}" }
+    }
+    val importXlsx = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) runCatching { VehicleFileManager.importXlsx(context.contentResolver, uri) }
+            .onSuccess { pendingRestore = it; pendingLabel = "Excel"; status = "Đã đọc trước ${it.size} xe. Chưa ghi dữ liệu." }
+            .onFailure { status = "Không thể đọc Excel: ${it.message}" }
+    }
+    val importJson = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) runCatching { VehicleFileManager.importJson(context.contentResolver, uri) }
+            .onSuccess { pendingRestore = it; pendingLabel = "JSON"; status = "Đã kiểm tra bản sao lưu ${it.size} xe. Chưa ghi dữ liệu." }
+            .onFailure { status = "Không thể đọc bản sao lưu: ${it.message}" }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize()) {
         Text("Tài khoản", fontWeight = FontWeight.Bold)
-        Text(email.ifBlank { "Chế độ ngoại tuyến" })
-        Text("Lưu ý: đồng bộ Firebase, phân quyền, sao lưu và Excel chưa được bật trong bản thử nghiệm này.", color = Color(0xFF61738B))
-        OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) { Text("Đăng xuất / Thoát phiên") }
+        Text(email.ifBlank { "Phiên ngoại tuyến đã xác thực trước đó" })
+        Text("Dữ liệu xe hiện có: ${vehicles.size}", color = Color(0xFF61738B))
+        Text("DỮ LIỆU & SAO LƯU", color = Brand, fontWeight = FontWeight.Bold)
+        Button(onClick = { exportXlsx.launch("QLBX_vehicles.xlsx") }, modifier = Modifier.fillMaxWidth()) { Text("Xuất danh sách xe Excel (.xlsx)") }
+        OutlinedButton(onClick = { importXlsx.launch(arrayOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) { Text("Nhập Excel (.xlsx) — xem trước") }
+        OutlinedButton(onClick = { exportJson.launch("QLBX_backup.json") }, modifier = Modifier.fillMaxWidth()) { Text("Tạo bản sao lưu xe JSON") }
+        OutlinedButton(onClick = { importJson.launch(arrayOf("application/json", "text/json", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) { Text("Khôi phục JSON — xem trước") }
+        if (status != null) Text(status!!, color = if (status!!.startsWith("Đã")) Color(0xFF16834A) else MaterialTheme.colorScheme.error, fontSize = 13.sp)
+        Text("Khôi phục sẽ thay thế toàn bộ danh sách xe trên thiết bị sau khi xác nhận.", color = Color(0xFF61738B), fontSize = 12.sp)
+        OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) { Text("Đăng xuất") }
+    }
+    if (pendingRestore != null) {
+        AlertDialog(
+            onDismissRequest = { pendingRestore = null },
+            title = { Text("Xác nhận khôi phục dữ liệu") },
+            text = { Text("Nguồn: $pendingLabel. Có ${pendingRestore!!.size} xe. Toàn bộ dữ liệu xe hiện tại (${vehicles.size} xe) sẽ bị thay thế. Bạn đã sao lưu dữ liệu hiện tại chưa?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val result = store.replaceAll(pendingRestore!!)
+                    status = result.fold({ "Khôi phục thành công: ${pendingRestore!!.size} xe." }, { "Khôi phục thất bại: ${it.message}" })
+                    pendingRestore = null
+                }) { Text("XÁC NHẬN THAY THẾ") }
+            },
+            dismissButton = { TextButton(onClick = { pendingRestore = null }) { Text("Hủy") } }
+        )
     }
 }
 
