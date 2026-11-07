@@ -350,7 +350,7 @@ private fun SettingsScreen(email: String, store: VehicleStore, yardStore: YardSt
     }
     val importXlsx = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) runCatching { VehicleFileManager.importXlsx(context.contentResolver, uri) }
-            .onSuccess { pendingRestore = AppBackup(it, emptyList(), yardStore.slots.value, eventStore.events.value); pendingLabel = "Excel"; status = "Đã đọc trước ${it.size} xe. Chưa ghi dữ liệu." }
+            .onSuccess { pendingRestore = AppBackup(it.map { vehicle -> vehicle.copy(currentSlotId = null) }, emptyList(), yardStore.slots.value.map { slot -> slot.copy(vehicleId = null) }, eventStore.events.value); pendingLabel = "Excel"; status = "Đã đọc trước ${it.size} xe. Chưa ghi dữ liệu." }
             .onFailure { status = "Không thể đọc Excel: ${it.message}" }
     }
     val importJson = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
