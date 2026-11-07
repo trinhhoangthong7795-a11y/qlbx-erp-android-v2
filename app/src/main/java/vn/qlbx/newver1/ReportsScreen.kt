@@ -73,6 +73,16 @@ fun ReportsScreen(vehicles: List<Vehicle>, movements: List<VehicleMovement>, eve
                 Text("Xuất $outCount", color = Color(0xFFE08A2E), modifier = Modifier.weight(1f), fontSize = 12.sp)
             }
         }
+        item { Text("Nhật ký hoạt động gần đây", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
+        items(movements.take(100), key = { it.id }) { movement ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(movement.identifier + " • " + when (movement.action) { "ENTRY" -> "Nhập bãi"; "EXIT" -> "Xuất bãi"; "EDIT" -> "Chỉnh sửa"; "DELETE" -> "Xóa bản ghi"; else -> movement.action }, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text(movement.note.ifBlank { movement.model }, color = Color(0xFF61738B), fontSize = 11.sp)
+                }
+                Text(SimpleDateFormat("dd/MM HH:mm", Locale.US).format(Date(movement.occurredAt)), fontSize = 10.sp, color = Color(0xFF61738B))
+            }
+        }
         item { Divider(); Text("Diễn biến đặc biệt", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
         item {
             OutlinedTextField(dateText, { dateText = it }, Modifier.fillMaxWidth(), label = { Text("Ngày (dd/MM/yyyy)") }, singleLine = true)
