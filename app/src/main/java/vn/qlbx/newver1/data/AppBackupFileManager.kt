@@ -46,7 +46,7 @@ object AppBackupFileManager {
             ?: error("Không mở được tệp đích để ghi.")
     }
 
-    fun import(resolver: ContentResolver, uri: Uri): AppBackup {
+    fun readBackup(resolver: ContentResolver, uri: Uri): AppBackup {
         val raw = resolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }
             ?: error("Không mở được tệp đã chọn.")
         require(raw.toByteArray().size <= 50 * 1024 * 1024) { "Bản sao lưu vượt quá 50 MB." }
