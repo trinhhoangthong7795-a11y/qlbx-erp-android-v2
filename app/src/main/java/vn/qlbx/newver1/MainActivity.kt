@@ -208,15 +208,85 @@ private fun MovementScreen(store: VehicleStore, yard: YardStore, vehicles: List<
 private fun VehicleSearchScreen(store: VehicleStore, vehicles: List<Vehicle>) {
     var query by remember { mutableStateOf("") }
     var showAll by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf<Vehicle?>(null) }
+    var model by remember { mutableStateOf("") }
+    var color by remember { mutableStateOf("") }
+    var department by remember { mutableStateOf("") }
+    var team by remember { mutableStateOf("") }
+    var deleteStage by remember { mutableIntStateOf(0) }
+    var message by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), label = { Text("Nhập biển số, VIN 6 số hoặc dòng xe") }, singleLine = true)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Lịch sử xe", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text("Quản lý xe • ${vehicles.size} bản ghi", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             TextButton(onClick = { showAll = !showAll }) { Text(if (showAll) "Chỉ xe trong bãi" else "Tất cả") }
         }
+        if (message != null) Text(message!!, color = Color(0xFF16834A), fontSize = 12.sp)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(store.search(query).filter { showAll || it.status != VehicleStatus.EXITED }, key = { it.id }) { VehicleRow(it) }
+            items(store.search(query).filter { showAll || it.status != VehicleStatus.EXITED }, key = { it.id }) { v ->
+                Card(colors = CardDefaults.cardColors(containerColor = Color.White), onClick = {
+                    selected = v; model = v.model; color = v.color; department = v.department; team = v.team
+                }) {
+                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(v.plate ?: v.vinLast6.orEmpty(), fontWeight = FontWeight.Bold)
+                            Text(v.model.ifBlank { "Chưa cập nhật dòng xe" }, color = Color(0xFF61738B), fontSize = 12.sp)
+                        }
+                        Text(if (v.status == VehicleStatus.EXITED) "Đã xuất" else if (v.status == VehicleStatus.WAITING) "Chờ xếp ô" else "Trong bãi", color = if (v.status == VehicleStatus.EXITED) Color(0xFF61738B) else Color(0xFF16834A), fontSize = 12.sp)
+                    }
+                }
+            }
         }
+    }
+    if (selected != null && deleteStage == 0) {
+        AlertDialog(
+            onDismissRequest = { selected = null },
+            title = { Text("Thông tin xe • ${selected!!.plate ?: selected!!.vinLast6}") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(model, { model = it }, label = { Text("Dòng xe") }, singleLine = true)
+                    OutlinedTextField(color, { color = it }, label = { Text("Màu xe") }, singleLine = true)
+                    OutlinedTextField(department, { department = it }, label = { Text("Phòng ban") }, singleLine = true)
+                    OutlinedTextField(team, { team = it }, label = { Text("Đội / depot") }, singleLine = true)
+                    Text("Trạng thái: ${selected!!.status}. Chỉnh sửa được ghi vào nhật ký.", fontSize = 12.sp, color = Color(0xFF61738B))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val result = store.update(selected!!.copy(model = model, color = color, department = department, team = team))
+                    message = result.fold({ "Đã cập nhật thông tin xe." }, { it.message ?: "Không thể cập nhật." })
+                    selected = null
+                }) { Text("Lưu thay đổi") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { deleteStage = 1 }) { Text("Xóa xe") }
+                    TextButton(onClick = { selected = null }) { Text("Đóng") }
+                }
+            }
+        )
+    } else if (selected != null && deleteStage == 1) {
+        AlertDialog(
+            onDismissRequest = { deleteStage = 0 },
+            title = { Text("Xác nhận xóa xe") },
+            text = { Text("Bạn sắp xóa vĩnh viễn ${selected!!.plate ?: selected!!.vinLast6}. Thao tác này không thể hoàn tác.") },
+            confirmButton = { TextButton(onClick = { deleteStage = 2 }) { Text("Tiếp tục") } },
+            dismissButton = { TextButton(onClick = { deleteStage = 0 }) { Text("Hủy") } }
+        )
+    } else if (selected != null && deleteStage == 2) {
+        AlertDialog(
+            onDismissRequest = { deleteStage = 0 },
+            title = { Text("Xác nhận lần cuối") },
+            text = { Text("XÓA VĨNH VIỄN bản ghi xe này?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val result = store.delete(selected!!.id)
+                    message = result.fold({ "Đã xóa bản ghi xe." }, { it.message ?: "Không thể xóa." })
+                    selected = null; deleteStage = 0
+                }) { Text("XÓA VĨNH VIỄN") }
+            },
+            dismissButton = { TextButton(onClick = { deleteStage = 0 }) { Text("Hủy") } }
+        )
     }
 }
 
