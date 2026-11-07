@@ -2,3 +2,4 @@ Temporary CI verification marker. This file is not part of the product scope and
 Trigger second CI event for Android build verification.
 Retry build after Android SDK setup correction.
 Retry after narrowing SDK packages.
+Retry build with Kotlin 2.4.0 for Firebase Auth binary compatibility.
