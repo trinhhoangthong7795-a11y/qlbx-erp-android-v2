@@ -11,6 +11,9 @@ on:
       - 'src/**'
       - '.github/workflows/mobile-validation-original.yml'
   workflow_dispatch:
+concurrency:
+  group: qlbx-android-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
