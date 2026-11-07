@@ -43,14 +43,30 @@ onAuthStateChanged(auth, async user => {
   }
   cloudState.ready = true;
   resolveAuthReady();
+  renderCloudUI();
+});
+function renderCloudUI() {
   const status = document.getElementById('cloud-status');
   const account = document.getElementById('cloud-account');
+  const upload = document.querySelector('[data-action="cloud-upload"]');
+  const logoutButton = document.querySelector('[data-action="cloud-logout"]');
   if (status) status.textContent = cloudState.user
     ? `${cloudState.user.email} · ${cloudState.profile?.role || 'chưa có quyền'}`
     : 'Chưa đăng nhập';
-  if (account && cloudState.user) account.innerHTML = `<p><strong>${cloudState.user.email}</strong></p><p class="hint">Vai trò: ${cloudState.profile?.role || '—'} · ${cloudState.profile?.active ? 'Đang hoạt động' : 'Chưa kích hoạt'}</p>`;
-  else if (account && !cloudState.user) account.innerHTML = '<p class="hint">Chưa đăng nhập. Dùng tài khoản do quản trị viên cấp.</p><button class="btn btn-primary" data-action="cloud-login">Đăng nhập Firebase</button>';
-});
+  if (account) {
+    const identity = cloudState.user ? `${cloudState.user.uid}:${cloudState.profile?.role || ''}` : 'signed-out';
+    if (account.dataset.cloudIdentity !== identity) {
+      account.dataset.cloudIdentity = identity;
+      account.innerHTML = cloudState.user
+        ? `<p><strong>${cloudState.user.email}</strong></p><p class="hint">Vai trò: ${cloudState.profile?.role || '—'} · ${cloudState.profile?.active ? 'Đang hoạt động' : 'Chưa kích hoạt'}</p>`
+        : '<p class="hint">Chưa đăng nhập. Dùng tài khoản do quản trị viên cấp.</p><button class="btn btn-primary" data-action="cloud-login">Đăng nhập Firebase</button>';
+    }
+  }
+  if (upload) upload.hidden = !cloudState.user || !['super_admin', 'admin', 'operator'].includes(cloudState.profile?.role);
+  if (logoutButton) logoutButton.hidden = !cloudState.user;
+}
+const cloudUiObserver = new MutationObserver(() => renderCloudUI());
+cloudUiObserver.observe(document.body, { childList: true, subtree: true });
 
 async function requireProfile() {
   await authReady;
