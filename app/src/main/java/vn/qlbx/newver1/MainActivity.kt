@@ -362,7 +362,7 @@ private fun SettingsScreen(email: String, store: VehicleStore, yardStore: YardSt
         Text(email.ifBlank { "Phiên ngoại tuyến đã xác thực trước đó" })
         Text("Dữ liệu xe hiện có: ${vehicles.size}", color = Color(0xFF61738B))
         Text("FIREBASE CLOUD", color = Brand, fontWeight = FontWeight.Bold)
-        OutlinedButton(onClick = { scope.launch { status = runCatching { "Đã gửi " + FirebaseRepository().syncLocalVehicles(vehicles) + " bản ghi xe lên Firebase." }.getOrElse { "Đồng bộ lên Firebase thất bại: " + it.message } } }, modifier = Modifier.fillMaxWidth()) { Text("Đồng bộ dữ liệu xe lên Firebase") }
+        OutlinedButton(onClick = { scope.launch { status = runCatching { "Đã đồng bộ " + FirebaseRepository().syncAll(AppBackup(vehicles, store.movements.value, yardStore.slots.value, eventStore.events.value)) + " mục dữ liệu lên Firebase." }.getOrElse { "Đồng bộ lên Firebase thất bại: " + it.message } } }, modifier = Modifier.fillMaxWidth()) { Text("Đồng bộ đầy đủ dữ liệu lên Firebase") }
         OutlinedButton(onClick = { scope.launch { status = runCatching { val cloud = FirebaseRepository().downloadAll(); store.replaceAll(cloud.vehicles, cloud.movements).getOrThrow(); yardStore.replaceAll(cloud.slots).getOrThrow(); eventStore.replaceAll(cloud.events).getOrThrow(); "Đã tải đầy đủ " + cloud.vehicles.size + " xe, nhật ký, sơ đồ và sự kiện từ Firebase." }.getOrElse { "Tải dữ liệu Firebase thất bại: " + it.message } } }, modifier = Modifier.fillMaxWidth()) { Text("Tải đầy đủ dữ liệu từ Firebase") }
         Text("DỮ LIỆU & SAO LƯU", color = Brand, fontWeight = FontWeight.Bold)
         Button(onClick = { exportXlsx.launch("QLBX_vehicles.xlsx") }, modifier = Modifier.fillMaxWidth()) { Text("Xuất danh sách xe Excel (.xlsx)") }
