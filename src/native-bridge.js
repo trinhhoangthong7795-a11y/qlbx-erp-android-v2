@@ -6,6 +6,7 @@ import { getAuth, onAuthStateChanged, setPersistence, indexedDBLocalPersistence,
 import { getFirestore, doc, getDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 
 // Firebase web configuration for the user's erp-parking project.
+// Authentication and cloud backup are opt-in; IndexedDB remains the local source of truth.
 const firebaseConfig = {
   apiKey: 'AIzaSyBJEK7sSDAKA0MMuXAsz_ikNnY6qfR1as',
   authDomain: 'erp-parking.firebaseapp.com',
