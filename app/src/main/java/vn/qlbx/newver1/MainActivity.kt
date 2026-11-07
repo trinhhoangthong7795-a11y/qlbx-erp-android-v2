@@ -166,7 +166,8 @@ private fun MovementScreen(store: VehicleStore, yard: YardStore, vehicles: List<
     var person by remember { mutableStateOf("") }
     var search by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
-    var showExited by remember { mutableStateOf(false) }
+    var exitTarget by remember { mutableStateOf<Vehicle?>(null) }
+    var exitPerson by remember { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
         Text("NHẬP BÃI", fontWeight = FontWeight.Bold, color = Brand)
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -193,15 +194,34 @@ private fun MovementScreen(store: VehicleStore, yard: YardStore, vehicles: List<
                             Text(v.plate ?: v.vinLast6.orEmpty(), fontWeight = FontWeight.Bold)
                             Text(v.model.ifBlank { if (v.identityType == IdentityType.PLATE) "Xe có biển số" else "Xe VIN 6 số" }, color = Color(0xFF61738B), fontSize = 12.sp)
                         }
-                        TextButton(onClick = {
-                            val r = store.exit(v.id)
-                            if (r.isSuccess) yard.clearVehicle(v.id)
-                            message = r.fold({ "Đã xuất bãi: " + (it.plate ?: it.vinLast6) }, { it.message })
-                        }) { Text("Xuất bãi") }
+                        TextButton(onClick = { exitTarget = v; exitPerson = "" }) { Text("Xuất bãi") }
                     }
                 }
             }
         }
+    }
+    if (exitTarget != null) {
+        AlertDialog(
+            onDismissRequest = { exitTarget = null },
+            title = { Text("Xác nhận xuất bãi") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Xe: " + (exitTarget!!.plate ?: exitTarget!!.vinLast6))
+                    OutlinedTextField(exitPerson, { exitPerson = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Người xuất bãi (không bắt buộc)") }, singleLine = true)
+                    Text("Thời điểm xuất sẽ được ghi nhận khi xác nhận.", fontSize = 12.sp, color = Color(0xFF61738B))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val target = exitTarget!!
+                    val result = store.exit(target.id, exitPerson)
+                    if (result.isSuccess) yard.clearVehicle(target.id)
+                    message = result.fold({ "Đã xuất bãi: " + (it.plate ?: it.vinLast6) }, { it.message })
+                    exitTarget = null
+                }) { Text("XÁC NHẬN XUẤT BÃI") }
+            },
+            dismissButton = { TextButton(onClick = { exitTarget = null }) { Text("Hủy") } }
+        )
     }
 }
 
