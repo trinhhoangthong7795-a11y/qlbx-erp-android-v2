@@ -39,6 +39,10 @@ fun YardScreen(yard: YardStore, vehicleStore: VehicleStore, vehicles: List<Vehic
                             }) { Text("Xóa dãy") }
                         }
                         rowSlots.groupBy { it.lane }.toSortedMap().forEach { (lane, laneSlots) ->
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Làn $lane", modifier = Modifier.weight(1f), fontSize = 11.sp, color = Color(0xFF61738B))
+                                TextButton(onClick = { yard.addSlot(rowNo, lane) }) { Text("+ Thêm ô") }
+                            }
                             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 laneSlots.sortedBy { it.position }.forEach { slot ->
                                     val vehicle = vehicles.firstOrNull { it.id == slot.vehicleId }
@@ -81,7 +85,16 @@ fun YardScreen(yard: YardStore, vehicleStore: VehicleStore, vehicles: List<Vehic
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showWaiting = false; selectedSlot = null }) { Text("Đóng") } }
+            confirmButton = {
+                Row {
+                    TextButton(onClick = {
+                        val result = yard.removeEmptySlot(selectedSlot!!.id)
+                        feedback = result.fold({ "Đã xóa ô trống." }, { it.message ?: "Không thể xóa ô." })
+                        showWaiting = false; selectedSlot = null
+                    }) { Text("Xóa ô trống") }
+                    TextButton(onClick = { showWaiting = false; selectedSlot = null }) { Text("Đóng") }
+                }
+            }
         )
     } else if (selectedSlot != null) {
         val slot = selectedSlot!!
