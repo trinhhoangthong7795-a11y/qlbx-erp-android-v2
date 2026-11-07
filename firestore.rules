@@ -18,7 +18,8 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || canAdmin());
       // Roles and active status must be assigned by an administrator in Firebase Console.
-      allow create, update, delete: if canAdmin() && request.resource.data.role in ['super_admin', 'admin', 'operator', 'viewer'];
+      allow create, update: if canAdmin() && request.resource.data.role in ['super_admin', 'admin', 'operator', 'viewer'];
+      allow delete: if canAdmin();
     }
 
     match /yards/{yardId}/{collection}/{docId} {
