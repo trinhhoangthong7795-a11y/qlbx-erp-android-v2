@@ -1,6 +1,17 @@
 name: QLBX ERP Android build
 run-name: Build QLBX ERP APK from original v1.2.2
 on:
+  push:
+    branches:
+      - erp-group/build-verify
+    paths:
+      - 'index.html'
+      - 'package.json'
+      - 'capacitor.config.json'
+      - 'src/**'
+      - 'scripts/**'
+      - 'firestore.rules'
+      - '.github/workflows/mobile-validation-original.yml'
   pull_request:
     branches:
       - main
