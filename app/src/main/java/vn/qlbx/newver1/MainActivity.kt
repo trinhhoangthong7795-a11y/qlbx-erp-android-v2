@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 import vn.qlbx.newver1.data.*
 
 private val Brand = Color(0xFF1769AA)
@@ -316,6 +317,7 @@ private fun YardPlaceholder(vehicles: List<Vehicle>) {
 @Composable
 private fun SettingsScreen(email: String, store: VehicleStore, vehicles: List<Vehicle>, onLogout: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
     var pendingRestore by remember { mutableStateOf<List<Vehicle>?>(null) }
     var pendingLabel by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<String?>(null) }
@@ -339,6 +341,24 @@ private fun SettingsScreen(email: String, store: VehicleStore, vehicles: List<Ve
         Text("Tài khoản", fontWeight = FontWeight.Bold)
         Text(email.ifBlank { "Phiên ngoại tuyến đã xác thực trước đó" })
         Text("Dữ liệu xe hiện có: ${vehicles.size}", color = Color(0xFF61738B))
+        Text("FIREBASE CLOUD", color = Brand, fontWeight = FontWeight.Bold)
+        OutlinedButton(onClick = {
+            scope.launch {
+                status = runCatching {
+                    val count = FirebaseRepository().syncLocalVehicles(vehicles)
+                    "Đã gửi $count bản ghi xe lên Firebase."
+                }.getOrElse { "Đồng bộ lên Firebase thất bại: " + it.message }
+            }
+        }, modifier = Modifier.fillMaxWidth()) { Text("Đồng bộ dữ liệu xe lên Firebase") }
+        OutlinedButton(onClick = {
+            scope.launch {
+                status = runCatching {
+                    val cloud = FirebaseRepository().downloadVehicles()
+                    store.replaceAll(cloud).getOrThrow()
+                    "Đã tải và thay thế dữ liệu bằng " + cloud.size + " xe từ Firebase."
+                }.getOrElse { "Tải dữ liệu Firebase thất bại: " + it.message }
+            }
+        }, modifier = Modifier.fillMaxWidth()) { Text("Tải dữ liệu xe từ Firebase") }
         Text("DỮ LIỆU & SAO LƯU", color = Brand, fontWeight = FontWeight.Bold)
         Button(onClick = { exportXlsx.launch("QLBX_vehicles.xlsx") }, modifier = Modifier.fillMaxWidth()) { Text("Xuất danh sách xe Excel (.xlsx)") }
         OutlinedButton(onClick = { importXlsx.launch(arrayOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) { Text("Nhập Excel (.xlsx) — xem trước") }
