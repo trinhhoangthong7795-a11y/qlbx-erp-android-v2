@@ -16,6 +16,8 @@ class FirebaseRepository(
     private fun vehicles() = db.collection("yards").document("main").collection("vehicles")
     private fun identifiers() = db.collection("yards").document("main").collection("activeIdentifiers")
     private fun movements() = db.collection("yards").document("main").collection("movements")
+    private fun slots() = db.collection("yards").document("main").collection("slots")
+    private fun events() = db.collection("yards").document("main").collection("events")
     private fun logs() = db.collection("yards").document("main").collection("logs")
 
     suspend fun currentAccess(): UserAccess {
@@ -82,6 +84,86 @@ class FirebaseRepository(
                 )
             }.getOrNull()
         }.sortedByDescending { it.entryAt }
+    }
+
+    suspend fun syncAll(backup: AppBackup): Int {
+        val access = currentAccess()
+        require(access.role in setOf("super_admin", "admin")) { "Chỉ quản trị viên mới được đồng bộ sơ đồ và sự kiện." }
+        var count = syncLocalVehicles(backup.vehicles)
+        backup.movements.chunked(400).forEach { chunk ->
+            val batch = db.batch()
+            chunk.forEach { m ->
+                batch.set(movements().document(m.id), mapOf(
+                    "vehicleId" to m.vehicleId, "action" to m.action, "occurredAt" to m.occurredAt,
+                    "identifier" to m.identifier, "model" to m.model, "person" to m.person,
+                    "note" to m.note, "actorUid" to access.uid
+                ))
+            }
+            batch.commit().await()
+            count += chunk.size
+        }
+        backup.slots.chunked(400).forEach { chunk ->
+            val batch = db.batch()
+            chunk.forEach { s ->
+                batch.set(slots().document(s.id), mapOf(
+                    "row" to s.row, "lane" to s.lane, "position" to s.position, "label" to s.label,
+                    "active" to s.active, "occupiedVehicleId" to s.vehicleId
+                ))
+            }
+            batch.commit().await()
+            count += chunk.size
+        }
+        backup.events.chunked(400).forEach { chunk ->
+            val batch = db.batch()
+            chunk.forEach { e ->
+                batch.set(events().document(e.id), mapOf(
+                    "eventDate" to e.date, "description" to e.description,
+                    "createdBy" to access.uid, "createdAt" to FieldValue.serverTimestamp()
+                ))
+            }
+            batch.commit().await()
+            count += chunk.size
+        }
+        return count
+    }
+
+    suspend fun downloadAll(): AppBackup {
+        currentAccess()
+        val vehicleList = downloadVehicles()
+        val movementDocs = movements().get().await().documents
+        val movementList = movementDocs.mapNotNull { doc ->
+            runCatching {
+                val m = doc.data ?: return@runCatching null
+                val time = when (val raw = m["occurredAt"]) {
+                    is com.google.firebase.Timestamp -> raw.toDate().time
+                    is Number -> raw.toLong()
+                    else -> 0L
+                }
+                VehicleMovement(
+                    id = doc.id, vehicleId = m["vehicleId"] as? String ?: return@runCatching null,
+                    action = m["action"] as? String ?: "UNKNOWN", occurredAt = time,
+                    identifier = m["identifier"] as? String ?: "", model = m["model"] as? String ?: "",
+                    person = m["person"] as? String ?: "", note = m["note"] as? String ?: ""
+                )
+            }.getOrNull()
+        }.sortedByDescending { it.occurredAt }
+        val slotDocs = slots().get().await().documents
+        val slotList = slotDocs.mapNotNull { doc ->
+            runCatching {
+                val m = doc.data ?: return@runCatching null
+                YardSlot(doc.id, (m["row"] as Number).toInt(), (m["lane"] as Number).toInt(),
+                    (m["position"] as Number).toInt(), m["label"] as? String ?: doc.id,
+                    m["active"] as? Boolean ?: true, m["occupiedVehicleId"] as? String)
+            }.getOrNull()
+        }
+        val eventDocs = events().get().await().documents
+        val eventList = eventDocs.mapNotNull { doc ->
+            runCatching {
+                val m = doc.data ?: return@runCatching null
+                SpecialEvent(doc.id, (m["eventDate"] as Number).toLong(), m["description"] as? String ?: "")
+            }.getOrNull()
+        }.sortedByDescending { it.date }
+        return AppBackup(vehicleList, movementList, slotList, eventList)
     }
 
     suspend fun recordMovement(vehicle: Vehicle, action: String, note: String = "") {
