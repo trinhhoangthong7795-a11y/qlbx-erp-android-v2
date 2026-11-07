@@ -4,3 +4,4 @@ Retry build after Android SDK setup correction.
 Retry after narrowing SDK packages.
 Retry build with Kotlin 2.4.0 for Firebase Auth binary compatibility.
 Retry after migrating to Kotlin compilerOptions DSL.
+Retry with in-process Kotlin compilation to avoid daemon stalls.
