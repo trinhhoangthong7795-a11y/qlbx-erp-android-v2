@@ -139,8 +139,17 @@ class VehicleStore(context: Context) {
                 put("updatedAt", v.updatedAt)
             })
         }
-        prefs.edit().putString("vehicles", array.toString()).apply()
+        val movementArray = JSONArray()\n        mutableMovements.value.forEach { m -> movementArray.put(JSONObject().put("id", m.id).put("vehicleId", m.vehicleId).put("action", m.action).put("occurredAt", m.occurredAt).put("identifier", m.identifier).put("model", m.model).put("person", m.person).put("note", m.note)) }\n        prefs.edit().putString("vehicles", array.toString()).putString("movements", movementArray.toString()).apply()
     }
+
+    private fun loadMovements(): List<VehicleMovement> = runCatching {
+        val raw = prefs.getString("movements", null) ?: return emptyList()
+        val array = JSONArray(raw)
+        (0 until array.length()).map { i ->
+            val o = array.getJSONObject(i)
+            VehicleMovement(o.getString("id"), o.getString("vehicleId"), o.getString("action"), o.optLong("occurredAt"), o.optString("identifier"), o.optString("model"), o.optString("person"), o.optString("note"))
+        }.sortedByDescending { it.occurredAt }
+    }.getOrDefault(emptyList())
 
     private fun load(): List<Vehicle> = runCatching {
         val raw = prefs.getString("vehicles", null) ?: return emptyList()
