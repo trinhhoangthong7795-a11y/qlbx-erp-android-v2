@@ -8,3 +8,4 @@ Retry with in-process Kotlin compilation to avoid daemon stalls.
 Use the standard Kotlin daemon strategy, previously proven by the passing baseline build.
 Trigger CI for complete JSON backup/restore integration.
 Trigger CI for complete Firebase sync and restore wiring.
+Trigger CI for vehicle deletion consistency and audit-safe full backup.
