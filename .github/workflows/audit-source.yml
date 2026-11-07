@@ -1,0 +1,36 @@
+name: Audit original QLBX source
+on:
+  push:
+    branches:
+      - erp-group/source-audit
+    paths:
+      - '.github/workflows/audit-source.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Inspect source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="QLBX_ERP_Android_Source_v1.2.zip"
+          test -f "$archive"
+          echo "=== ARCHIVE FILE ==="
+          ls -lh "$archive"
+          echo "=== ZIP ROOT ==="
+          unzip -Z1 "$archive" | sed -n '1,100p'
+          echo "=== SOURCE MANIFESTS ==="
+          mkdir -p /tmp/qlbx-source
+          unzip -q "$archive" -d /tmp/qlbx-source
+          find /tmp/qlbx-source -maxdepth 4 -type f | sort | sed -n '1,160p'
+          echo "=== PACKAGE JSON ==="
+          find /tmp/qlbx-source -name package.json -print -exec cat {} \; || true
+          echo "=== README FILES ==="
+          find /tmp/qlbx-source -iname 'readme*' -print -exec sed -n '1,220p' {} \; || true
+          echo "=== HTML ENTRY FILES ==="
+          find /tmp/qlbx-source -name '*.html' -maxdepth 5 -print
