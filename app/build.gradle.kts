@@ -13,7 +13,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "vn.qlbx.newver1"
+        applicationId = "vn.qlbx.erp"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
