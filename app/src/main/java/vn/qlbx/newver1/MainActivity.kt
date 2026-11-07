@@ -1,6 +1,9 @@
 package vn.qlbx.newver1
 
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -45,6 +48,8 @@ private fun QlbxApp() {
     var selected by remember { mutableStateOf("Tổng quan") }
     var signedIn by remember { mutableStateOf(false) }
     var userEmail by remember { mutableStateOf("") }
+    val authPrefs = remember { context.getSharedPreferences("qlbx_auth", android.content.Context.MODE_PRIVATE) }
+    val hasPreviousLogin = remember { authPrefs.getBoolean("has_authenticated", false) }
 
     LaunchedEffect(Unit) {
         signedIn = runCatching {
@@ -57,14 +62,14 @@ private fun QlbxApp() {
     MaterialTheme(colorScheme = lightColorScheme(primary = Brand, background = Canvas, surface = Color.White, onBackground = Ink, onSurface = Ink)) {
         if (!signedIn) {
             LoginScreen(
-                onOffline = { signedIn = true },
+                onOffline = { if (hasPreviousLogin) signedIn = true },
                 onLogin = { email, password, done ->
                     val configured = runCatching { FirebaseApp.getApps(context).isNotEmpty() }.getOrDefault(false)
                     if (!configured) done("Chưa có google-services.json trong app. Hãy cấu hình Firebase Android trước khi đăng nhập.")
                     else runCatching { FirebaseAuth.getInstance() }
                         .onSuccess { auth ->
                             auth.signInWithEmailAndPassword(email.trim(), password)
-                                .addOnSuccessListener { userEmail = it.user?.email.orEmpty(); signedIn = true; done(null) }
+                                .addOnSuccessListener { userEmail = it.user?.email.orEmpty(); authPrefs.edit().putBoolean("has_authenticated", true).apply(); signedIn = true; done(null) }
                                 .addOnFailureListener { done(it.localizedMessage ?: "Đăng nhập thất bại.") }
                         }.onFailure { done(it.localizedMessage ?: "Không khởi tạo được Firebase.") }
                 }
@@ -96,7 +101,7 @@ private fun QlbxApp() {
                         "Nhập/Xuất" -> MovementScreen(store, vehicles)
                         "Tìm xe" -> VehicleSearchScreen(store, vehicles)
                         "Sơ đồ bãi" -> YardPlaceholder(vehicles)
-                        "Hệ thống" -> SettingsScreen(userEmail) {
+                        "Hệ thống" -> SettingsScreen(userEmail, store, vehicles) {
                             runCatching { FirebaseAuth.getInstance().signOut() }
                             userEmail = ""; signedIn = false
                         }
@@ -265,7 +270,7 @@ private fun LoginScreen(onOffline: () -> Unit, onLogin: (String, String, (String
             }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(54.dp)) {
                 if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text("Đăng nhập")
             }
-            TextButton(onClick = onOffline, modifier = Modifier.fillMaxWidth()) { Text("Tiếp tục ngoại tuyến (bản thử nghiệm)") }
+            if (androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("qlbx_auth", android.content.Context.MODE_PRIVATE).getBoolean("has_authenticated", false)) { TextButton(onClick = onOffline, modifier = Modifier.fillMaxWidth()) { Text("Tiếp tục ngoại tuyến") } }
         }
     }
 }
