@@ -8,13 +8,13 @@
     "test": "node -e \"const fs=require('fs'); const s=fs.readFileSync('index.html','utf8'); if(!s.includes('<html') || !s.includes('QLBX ERP')) process.exit(1); console.log('QLBX HTML entry point verified');\""
   },
   "dependencies": {
-    "@capacitor/core": "7.4.3",
-    "@capacitor/filesystem": "7.4.3",
-    "@capacitor/share": "7.4.3"
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/filesystem": "^7.0.0",
+    "@capacitor/share": "^7.0.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "7.4.3",
-    "@capacitor/android": "7.4.3",
-    "vite": "6.4.1"
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/android": "^7.0.0",
+    "vite": "^6.0.0"
   }
 }
