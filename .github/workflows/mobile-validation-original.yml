@@ -1,5 +1,5 @@
-name: QLBX ERP Android validation from original
-run-name: Validate uploaded original v1.2.2
+name: QLBX ERP Android build
+run-name: Build QLBX ERP APK from original v1.2.2
 on:
   push:
     branches:
@@ -20,82 +20,53 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: erp-group/mobile-from-original-v1.2.2
-          persist-credentials: true
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
       - name: Install dependencies
-        id: install
-        continue-on-error: true
         run: npm install --no-audit --no-fund
-      - name: Test source
-        id: test
-        if: always()
-        continue-on-error: true
+      - name: Verify source
         run: npm test
-      - name: Build web bundle
-        id: web
-        if: always()
-        continue-on-error: true
+      - name: Build web app
         run: npm run build
       - name: Add Android platform
-        id: add
-        if: always()
-        continue-on-error: true
         run: npx cap add android
       - name: Sync Android platform
-        id: sync
-        if: always()
-        continue-on-error: true
         run: npx cap sync android
       - name: Build debug APK
-        id: apk
-        if: always() && hashFiles('android/gradlew') != ''
-        continue-on-error: true
         working-directory: android
         run: ./gradlew assembleDebug
       - name: Write validation report
         if: always()
         shell: bash
-        env:
-          INSTALL_OUTCOME: ${{ steps.install.outcome }}
-          TEST_OUTCOME: ${{ steps.test.outcome }}
-          WEB_OUTCOME: ${{ steps.web.outcome }}
-          ADD_OUTCOME: ${{ steps.add.outcome }}
-          SYNC_OUTCOME: ${{ steps.sync.outcome }}
-          APK_OUTCOME: ${{ steps.apk.outcome }}
         run: |
           {
-            echo "# QLBX ERP Android validation"
+            echo "# QLBX ERP Android build report"
             echo
-            echo "- Source baseline: uploaded QLBX_ERP_v1.2.2.html"
-            echo "- Working branch: erp-group/mobile-from-original-v1.2.2"
+            echo "- Source: uploaded original HTML, copied to root index.html"
+            echo "- Branch: erp-group/mobile-from-original-v1.2.2"
             echo "- Commit: $GITHUB_SHA"
-            echo "- npm install: $INSTALL_OUTCOME"
-            echo "- npm test: $TEST_OUTCOME"
-            echo "- Vite build: $WEB_OUTCOME"
-            echo "- Capacitor Android add: $ADD_OUTCOME"
-            echo "- Capacitor sync: $SYNC_OUTCOME"
-            echo "- Gradle APK build: ${APK_OUTCOME:-not-run}"
+            echo "- Node: $(node --version 2>/dev/null || true)"
+            echo "- npm: $(npm --version 2>/dev/null || true)"
             echo
-            echo "## Resolved package versions"
-            npm ls --depth=0 2>&1 || true
-            if [ -f dist/index.html ]; then echo; echo "- dist/index.html: present"; else echo; echo "- dist/index.html: missing"; fi
+            echo "## Android output"
             if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
+              echo "- APK generated: yes"
               echo "- APK size: $(du -h android/app/build/outputs/apk/debug/app-debug.apk | cut -f1)"
             else
-              echo "- APK: not generated"
+              echo "- APK generated: no"
             fi
           } > MOBILE_VALIDATION_REPORT.md
-      - name: Upload debug APK and report
+      - name: Upload APK and report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: qlbx-erp-android-from-original
+          name: qlbx-erp-android-debug
           path: |
             android/app/build/outputs/apk/debug/app-debug.apk
             MOBILE_VALIDATION_REPORT.md
@@ -107,5 +78,5 @@ jobs:
           git config user.name "ERP Group"
           git config user.email "erp-group@users.noreply.github.com"
           git add MOBILE_VALIDATION_REPORT.md
-          git commit -m "Record original source Android validation" || exit 0
+          git commit -m "Record Android APK build result" || exit 0
           git push origin HEAD:erp-group/mobile-from-original-v1.2.2
