@@ -181,7 +181,7 @@ async function init(){
   await refresh();if(!state.metaRecords.some(x=>x.key==='catalogs')){await put('meta',{key:'catalogs',value:DEFAULT_CATALOGS});await refresh();}$('#db-status').textContent='IndexedDB • dữ liệu cục bộ';$('#today-label').textContent=new Date().toLocaleDateString('vi-VN',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});render();
 }
 function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2600);}
-function setView(view){closeModal();state.view=view;state.search='';$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('#mobile-more')?.classList.toggle('active',['exit','stocktake','logs','settings'].includes(view));$('#page-title').textContent=viewNames[view]||'QLBX ERP';render();window.scrollTo({top:0,behavior:'smooth'});}
+function setView(view){closeModal();state.view=view;state.search='';document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('#mobile-more')?.classList.toggle('active',['exit','stocktake','logs','settings'].includes(view));$('#page-title').textContent=viewNames[view]||'QLBX ERP';render();window.scrollTo({top:0,behavior:'smooth'});}
 function pageHead(title,desc,actions=''){return `<div class="page-head"><div><h2>${title}</h2><p>${desc}</p></div><div class="action-row">${actions}</div></div>`;}
 function kpi(label,value,sub,icon,cls=''){return `<div class="card kpi ${cls}"><div><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-sub">${sub}</div></div><div class="kpi-icon">${icon}</div></div>`;}
 function activeVehicles(){return state.vehicles.filter(v=>v.status==='inside');}
