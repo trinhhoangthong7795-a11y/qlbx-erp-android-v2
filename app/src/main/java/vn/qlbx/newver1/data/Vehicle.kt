@@ -81,3 +81,14 @@ object VehicleRules {
         }
     }
 }
+
+data class VehicleMovement(
+    val id: String = UUID.randomUUID().toString(),
+    val vehicleId: String,
+    val action: String,
+    val occurredAt: Long = System.currentTimeMillis(),
+    val identifier: String,
+    val model: String = "",
+    val person: String = "",
+    val note: String = ""
+)
