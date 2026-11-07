@@ -113,7 +113,7 @@ class YardStore(context: Context) {
     }
 
     private fun load(): List<YardSlot> = runCatching {
-        val raw = prefs.getString("slots", null) ?: return (1..5).flatMap(::makeRow).also { mutableSlots.value = it }
+        val raw = prefs.getString("slots", null) ?: return (1..5).flatMap(::makeRow)
         val arr = JSONArray(raw)
         (0 until arr.length()).map { i ->
             val o = arr.getJSONObject(i)
