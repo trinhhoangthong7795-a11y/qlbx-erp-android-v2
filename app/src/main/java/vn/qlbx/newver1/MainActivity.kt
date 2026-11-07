@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
 private fun QlbxApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val store = remember { VehicleStore(context) }
+    val yardStore = remember { YardStore(context) }
     val vehicles by store.vehicles.collectAsState()
     var selected by remember { mutableStateOf("Tổng quan") }
     var signedIn by remember { mutableStateOf(false) }
@@ -98,9 +99,9 @@ private fun QlbxApp() {
                     if (userEmail.isNotBlank()) Text(userEmail, color = Color(0xFF61738B), fontSize = 12.sp)
                     Spacer(Modifier.height(14.dp))
                     when (selected) {
-                        "Nhập/Xuất" -> MovementScreen(store, vehicles)
+                        "Nhập/Xuất" -> MovementScreen(store, yardStore, vehicles)
                         "Tìm xe" -> VehicleSearchScreen(store, vehicles)
-                        "Sơ đồ bãi" -> YardPlaceholder(vehicles)
+                        "Sơ đồ bãi" -> YardScreen(yardStore, store, vehicles)
                         "Hệ thống" -> SettingsScreen(userEmail, store, vehicles) {
                             runCatching { FirebaseAuth.getInstance().signOut() }
                             userEmail = ""; signedIn = false
@@ -152,7 +153,7 @@ private fun MetricCard(label: String, value: String, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun MovementScreen(store: VehicleStore, vehicles: List<Vehicle>) {
+private fun MovementScreen(store: VehicleStore, yard: YardStore, vehicles: List<Vehicle>) {
     var mode by remember { mutableStateOf(IdentityType.PLATE) }
     var identifier by remember { mutableStateOf("") }
     var model by remember { mutableStateOf("") }
