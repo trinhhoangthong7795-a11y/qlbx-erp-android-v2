@@ -1,0 +1,9 @@
+{
+  "appId": "vn.qlbx.erp",
+  "appName": "QLBX ERP – Quản lý bãi xe",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
