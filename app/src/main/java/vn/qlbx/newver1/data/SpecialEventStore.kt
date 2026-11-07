@@ -28,6 +28,15 @@ class SpecialEventStore(context: Context) {
         persist()
     }
 
+    @Synchronized
+    fun replaceAll(replacement: List<SpecialEvent>): Result<Unit> {
+        if (replacement.map { it.id }.distinct().size != replacement.size) return Result.failure(IllegalArgumentException("Sự kiện có ID trùng nhau."))
+        if (replacement.any { it.description.isBlank() }) return Result.failure(IllegalArgumentException("Sự kiện có nội dung trống."))
+        mutableEvents.value = replacement.sortedByDescending { it.date }
+        persist()
+        return Result.success(Unit)
+    }
+
     private fun persist() {
         val array = JSONArray()
         mutableEvents.value.forEach { array.put(JSONObject().put("id", it.id).put("date", it.date).put("description", it.description)) }
