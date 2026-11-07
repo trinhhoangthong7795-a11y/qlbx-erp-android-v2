@@ -5,16 +5,16 @@
   "description": "QLBX ERP Android wrapper using Capacitor 7",
   "scripts": {
     "build": "vite build",
-    "test": "node -e \"const fs=require('fs'); if(!fs.existsSync('index.html')) process.exit(1); console.log('Source HTML found');\""
+    "test": "node -e \"const fs=require('fs'); const s=fs.readFileSync('index.html','utf8'); if(!s.includes('<html') || !s.includes('QLBX ERP')) process.exit(1); console.log('QLBX HTML entry point verified');\""
   },
   "dependencies": {
-    "@capacitor/core": "latest-7",
-    "@capacitor/filesystem": "latest-7",
-    "@capacitor/share": "latest-7"
+    "@capacitor/core": "7.4.3",
+    "@capacitor/filesystem": "7.4.3",
+    "@capacitor/share": "7.4.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "latest-7",
-    "@capacitor/android": "latest-7",
-    "vite": "^6.4.1"
+    "@capacitor/cli": "7.4.3",
+    "@capacitor/android": "7.4.3",
+    "vite": "6.4.1"
   }
 }
