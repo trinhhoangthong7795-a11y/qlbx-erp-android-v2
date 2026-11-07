@@ -125,12 +125,6 @@ class FirebaseRepository(
             batch.commit().await()
             count += chunk.size
         }
-        deleteDocsNotIn(vehicles(), backup.vehicles.map { it.id }.toSet())
-        deleteDocsNotIn(movements(), backup.movements.map { it.id }.toSet())
-        deleteDocsNotIn(slots(), backup.slots.map { it.id }.toSet())
-        deleteDocsNotIn(events(), backup.events.map { it.id }.toSet())
-        val activeKeys = backup.vehicles.filter { it.status != VehicleStatus.EXITED }.map { identifierKey(it) }.toSet()
-        deleteDocsNotIn(activeIdentifiers(), activeKeys)
         return count
     }
 
@@ -180,15 +174,6 @@ class FirebaseRepository(
             "vehicleId" to vehicle.id, "action" to action, "occurredAt" to FieldValue.serverTimestamp(),
             "actorUid" to access.uid, "snapshot" to vehicle.toMap(access.uid), "note" to note
         )).await()
-    }
-
-    private suspend fun deleteDocsNotIn(collection: com.google.firebase.firestore.CollectionReference, keepIds: Set<String>) {
-        val stale = collection.get().await().documents.filterNot { it.id in keepIds }
-        stale.chunked(400).forEach { chunk ->
-            val batch = db.batch()
-            chunk.forEach { batch.delete(it.reference) }
-            batch.commit().await()
-        }
     }
 
     private fun identifierKey(vehicle: Vehicle): String {
