@@ -37,13 +37,14 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun QlbxApp() {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var selected by remember { mutableStateOf("Tổng quan") }
     var signedIn by remember { mutableStateOf(false) }
     var userEmail by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         signedIn = runCatching {
-            FirebaseApp.getApps(androidx.compose.ui.platform.LocalContext.current).isNotEmpty() &&
+            FirebaseApp.getApps(context).isNotEmpty() &&
                 FirebaseAuth.getInstance().currentUser != null
         }.getOrDefault(false)
         if (signedIn) userEmail = runCatching { FirebaseAuth.getInstance().currentUser?.email.orEmpty() }.getOrDefault("")
@@ -62,7 +63,6 @@ private fun QlbxApp() {
             LoginScreen(
                 onOffline = { signedIn = true },
                 onLogin = { email, password, done ->
-                    val context = androidx.compose.ui.platform.LocalContext.current
                     val configured = runCatching { FirebaseApp.getApps(context).isNotEmpty() }.getOrDefault(false)
                     if (!configured) {
                         done("Firebase chưa được cấu hình. Hãy thêm app/google-services.json.")
@@ -161,7 +161,6 @@ private fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
-    val context = androidx.compose.ui.platform.LocalContext.current
     Surface(color = Canvas, modifier = Modifier.fillMaxSize()) {
         Column(
             Modifier.fillMaxSize().padding(24.dp),
