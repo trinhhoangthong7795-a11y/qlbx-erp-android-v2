@@ -261,7 +261,9 @@ private fun VehicleSearchScreen(store: VehicleStore, yard: YardStore, vehicles: 
     var showAll by remember { mutableStateOf(false) }
     var exportMessage by remember { mutableStateOf<String?>(null) }
     val isExactVinLookup = query.trim().length == 6 && query.trim().all { it.isDigit() }
-    val filteredVehicles = store.search(query).filter { showAll || isExactVinLookup || it.status != VehicleStatus.EXITED }
+    val filteredVehicles = store.search(query).filter {
+        showAll || (isExactVinLookup && it.vinLast6 == query.trim()) || it.status != VehicleStatus.EXITED
+    }
     val exportFiltered = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) { uri ->
         if (uri != null) exportMessage = runCatching {
             VehicleFileManager.exportXlsx(context.contentResolver, uri, filteredVehicles)
