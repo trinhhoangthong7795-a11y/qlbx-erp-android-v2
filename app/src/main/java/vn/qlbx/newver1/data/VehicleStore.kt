@@ -78,6 +78,7 @@ class VehicleStore(context: Context) {
             if (old.color != saved.color) add("màu: '${old.color}' → '${saved.color}'")
             if (old.department != saved.department) add("phòng ban: '${old.department}' → '${saved.department}'")
             if (old.team != saved.team) add("đội/depot: '${old.team}' → '${saved.team}'")
+            if (old.currentSlotId != saved.currentSlotId) add("vị trí ô: '${old.currentSlotId.orEmpty()}' → '${saved.currentSlotId.orEmpty()}'")
             if (old.entryPerson != saved.entryPerson) add("người nhập: '${old.entryPerson}' → '${saved.entryPerson}'")
             if (old.exitPerson != saved.exitPerson) add("người xuất: '${old.exitPerson}' → '${saved.exitPerson}'")
             if (old.status != saved.status) add("trạng thái: ${old.status} → ${saved.status}")
