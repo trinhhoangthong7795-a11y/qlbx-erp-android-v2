@@ -29,6 +29,7 @@ fun ReportsScreen(vehicles: List<Vehicle>, movements: List<VehicleMovement>, eve
     var dateText by remember { mutableStateOf(SimpleDateFormat("dd/MM/yyyy", Locale.US).format(Date())) }
     var description by remember { mutableStateOf("") }
     var selectedEvents by remember { mutableStateOf(setOf<String>()) }
+    var chartPeriod by remember { mutableStateOf("Ngày") }
     var status by remember { mutableStateOf<String?>(null) }
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/png")) { uri ->
         if (uri != null) status = runCatching {
@@ -59,6 +60,33 @@ fun ReportsScreen(vehicles: List<Vehicle>, movements: List<VehicleMovement>, eve
             movements.none { it.vehicleId == v.id && it.action == "EXIT" && it.occurredAt >= start && it.occurredAt < end } }
         return logged + imported
     }
+    val chartBuckets: List<Triple<String, Long, Long>> = when (chartPeriod) {
+        "Ngày" -> (6 downTo 0).map { offset ->
+            val (start, end) = dayBounds(offset)
+            Triple(SimpleDateFormat("dd/MM", Locale.US).format(Date(start)), start, end)
+        }
+        "Tuần" -> (3 downTo 0).map { offset ->
+            val calendar = Calendar.getInstance()
+            calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0)
+            val daysSinceMonday = (calendar.get(Calendar.DAY_OF_WEEK) + 5) % 7
+            calendar.add(Calendar.DAY_OF_MONTH, -daysSinceMonday)
+            calendar.add(Calendar.WEEK_OF_YEAR, -offset)
+            val start = calendar.timeInMillis
+            calendar.add(Calendar.WEEK_OF_YEAR, 1)
+            Triple("Tuần " + SimpleDateFormat("dd/MM", Locale.US).format(Date(start)), start, calendar.timeInMillis)
+        }
+        else -> (5 downTo 0).map { offset ->
+            val calendar = Calendar.getInstance()
+            calendar.set(Calendar.DAY_OF_MONTH, 1)
+            calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0)
+            calendar.add(Calendar.MONTH, -offset)
+            val start = calendar.timeInMillis
+            calendar.add(Calendar.MONTH, 1)
+            Triple(SimpleDateFormat("MMM yy", Locale("vi", "VN")).format(Date(start)), start, calendar.timeInMillis)
+        }
+    }
     val inside = vehicles.filter { it.status != VehicleStatus.EXITED }
     val ages = listOf(
         "0–10 ngày" to inside.count { (now - it.entryAt) / 86400000L <= 10 },
@@ -84,13 +112,19 @@ fun ReportsScreen(vehicles: List<Vehicle>, movements: List<VehicleMovement>, eve
                 Text("  ${item.second}", fontWeight = FontWeight.Bold)
             }
         }
-        item { Text("Nhập / xuất trong 7 ngày gần nhất", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
-        items((6 downTo 0).toList()) { offset ->
-            val (dayStart, dayEnd) = dayBounds(offset)
-            val inCount = countEntries(dayStart, dayEnd)
-            val outCount = countExits(dayStart, dayEnd)
+        item {
+            Text("Biểu đồ nhập / xuất", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                listOf("Ngày", "Tuần", "Tháng").forEachIndexed { index, label ->
+                    SegmentedButton(chartPeriod == label, { chartPeriod = label }, shape = SegmentedButtonDefaults.itemShape(index, 3)) { Text(label) }
+                }
+            }
+        }
+        items(chartBuckets) { bucket ->
+            val inCount = countEntries(bucket.second, bucket.third)
+            val outCount = countExits(bucket.second, bucket.third)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(SimpleDateFormat("dd/MM", Locale.US).format(Date(dayStart)), modifier = Modifier.width(56.dp), fontSize = 12.sp)
+                Text(bucket.first, modifier = Modifier.width(82.dp), fontSize = 12.sp)
                 Text("Nhập $inCount", color = Color(0xFF16834A), modifier = Modifier.weight(1f), fontSize = 12.sp)
                 Text("Xuất $outCount", color = Color(0xFFE08A2E), modifier = Modifier.weight(1f), fontSize = 12.sp)
             }
