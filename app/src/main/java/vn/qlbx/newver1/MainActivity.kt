@@ -7,6 +7,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,6 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
@@ -34,6 +39,14 @@ import vn.qlbx.newver1.data.*
 private val Brand = Color(0xFF1769AA)
 private val Canvas = Color(0xFFF4F7FB)
 private val Ink = Color(0xFF172B4D)
+
+private fun formatVehicleDateTime(timestamp: Long?): String =
+    timestamp?.let { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("vi", "VN")).format(Date(it)) }.orEmpty()
+
+private fun parseVehicleDateTime(raw: String): Long? =
+    runCatching {
+        SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("vi", "VN")).apply { isLenient = false }.parse(raw.trim())?.time
+    }.getOrNull()
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -275,6 +288,11 @@ private fun VehicleSearchScreen(store: VehicleStore, yard: YardStore, vehicles: 
     var color by remember { mutableStateOf("") }
     var department by remember { mutableStateOf("") }
     var team by remember { mutableStateOf("") }
+    var entryPerson by remember { mutableStateOf("") }
+    var exitPerson by remember { mutableStateOf("") }
+    var entryAtText by remember { mutableStateOf("") }
+    var exitAtText by remember { mutableStateOf("") }
+    var editError by remember { mutableStateOf<String?>(null) }
     var deleteStage by remember { mutableIntStateOf(0) }
     var message by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -292,6 +310,9 @@ private fun VehicleSearchScreen(store: VehicleStore, yard: YardStore, vehicles: 
             items(filteredVehicles, key = { it.id }) { v ->
                 Card(colors = CardDefaults.cardColors(containerColor = Color.White), onClick = {
                     selected = v; model = v.model; color = v.color; department = v.department; team = v.team
+                    entryPerson = v.entryPerson; exitPerson = v.exitPerson
+                    entryAtText = formatVehicleDateTime(v.entryAt); exitAtText = formatVehicleDateTime(v.exitAt)
+                    editError = null
                 }) {
                     Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
@@ -309,12 +330,21 @@ private fun VehicleSearchScreen(store: VehicleStore, yard: YardStore, vehicles: 
             onDismissRequest = { selected = null },
             title = { Text("Thông tin xe • ${selected!!.plate ?: selected!!.vinLast6}") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     OutlinedTextField(model, { model = it }, label = { Text("Dòng xe") }, singleLine = true, enabled = !readOnly)
                     OutlinedTextField(color, { color = it }, label = { Text("Màu xe") }, singleLine = true, enabled = !readOnly)
                     OutlinedTextField(department, { department = it }, label = { Text("Phòng ban") }, singleLine = true, enabled = !readOnly)
                     OutlinedTextField(team, { team = it }, label = { Text("Đội / depot") }, singleLine = true, enabled = !readOnly)
-                    Text("Trạng thái: ${selected!!.status}. Chỉnh sửa được ghi vào nhật ký.", fontSize = 12.sp, color = Color(0xFF61738B))
+                    OutlinedTextField(entryPerson, { entryPerson = it }, label = { Text("Người nhập bãi") }, singleLine = true, enabled = !readOnly)
+                    OutlinedTextField(entryAtText, { entryAtText = it; editError = null }, label = { Text("Thời điểm nhập (dd/MM/yyyy HH:mm)") }, singleLine = true, enabled = !readOnly)
+                    OutlinedTextField(exitPerson, { exitPerson = it }, label = { Text("Người xuất bãi") }, singleLine = true, enabled = !readOnly && selected!!.status == VehicleStatus.EXITED)
+                    OutlinedTextField(exitAtText, { exitAtText = it; editError = null }, label = { Text("Thời điểm xuất (dd/MM/yyyy HH:mm)") }, singleLine = true, enabled = !readOnly && selected!!.status == VehicleStatus.EXITED)
+                    if (selected!!.status != VehicleStatus.EXITED) Text("Thời điểm và người xuất chỉ chỉnh sửa với xe đã xuất bãi.", fontSize = 12.sp, color = Color(0xFF61738B))
+                    if (editError != null) Text(editError!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    Text("Trạng thái: ${selected!!.status}. Mọi thay đổi được ghi vào nhật ký.", fontSize = 12.sp, color = Color(0xFF61738B))
                 }
             },
             confirmButton = {
@@ -322,9 +352,22 @@ private fun VehicleSearchScreen(store: VehicleStore, yard: YardStore, vehicles: 
                     TextButton(onClick = { selected = null }) { Text("Đóng") }
                 } else {
                     TextButton(onClick = {
-                        val result = store.update(selected!!.copy(model = model, color = color, department = department, team = team))
-                        message = result.fold({ "Đã cập nhật thông tin xe." }, { it.message ?: "Không thể cập nhật." })
-                        selected = null
+                        val entryAt = parseVehicleDateTime(entryAtText)
+                        val exitAt = if (exitAtText.isBlank()) null else parseVehicleDateTime(exitAtText)
+                        when {
+                            entryAt == null -> editError = "Thời điểm nhập phải theo dạng dd/MM/yyyy HH:mm."
+                            selected!!.status == VehicleStatus.EXITED && exitAt == null -> editError = "Xe đã xuất bãi cần có thời điểm xuất hợp lệ."
+                            exitAt != null && exitAt < entryAt -> editError = "Thời điểm xuất không được trước thời điểm nhập."
+                            selected!!.status != VehicleStatus.EXITED && exitAt != null -> editError = "Chỉ xe đã xuất bãi mới được có thời điểm xuất."
+                            else -> {
+                                val result = store.update(selected!!.copy(
+                                    model = model, color = color, department = department, team = team,
+                                    entryPerson = entryPerson, entryAt = entryAt, exitPerson = exitPerson, exitAt = exitAt
+                                ))
+                                message = result.fold({ "Đã cập nhật thông tin xe và lịch sử thời gian." }, { it.message ?: "Không thể cập nhật." })
+                                if (result.isSuccess) selected = null
+                            }
+                        }
                     }) { Text("Lưu thay đổi") }
                 }
             },
