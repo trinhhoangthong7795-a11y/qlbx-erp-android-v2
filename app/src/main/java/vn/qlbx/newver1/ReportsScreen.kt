@@ -23,7 +23,7 @@ import java.util.Calendar
 import java.util.Locale
 
 @Composable
-fun ReportsScreen(vehicles: List<Vehicle>, movements: List<VehicleMovement>, eventStore: SpecialEventStore) {
+fun ReportsScreen(vehicles: List<Vehicle>, movements: List<VehicleMovement>, eventStore: SpecialEventStore, canManageEvents: Boolean = true) {
     val context = LocalContext.current
     val events by eventStore.events.collectAsState()
     var dateText by remember { mutableStateOf(SimpleDateFormat("dd/MM/yyyy", Locale.US).format(Date())) }
@@ -141,12 +141,16 @@ fun ReportsScreen(vehicles: List<Vehicle>, movements: List<VehicleMovement>, eve
         }
         item { Divider(); Text("Diễn biến đặc biệt", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
         item {
-            OutlinedTextField(dateText, { dateText = it }, Modifier.fillMaxWidth(), label = { Text("Ngày (dd/MM/yyyy)") }, singleLine = true)
-            OutlinedTextField(description, { description = it }, Modifier.fillMaxWidth(), label = { Text("Nội dung sự kiện") }, minLines = 2)
-            Button(onClick = {
-                val date = runCatching { SimpleDateFormat("dd/MM/yyyy", Locale.US).apply { isLenient = false }.parse(dateText)?.time }.getOrNull()
-                status = if (date == null) "Ngày không hợp lệ." else eventStore.add(date, description).fold({ description = ""; "Đã lưu sự kiện." }, { it.message })
-            }, modifier = Modifier.fillMaxWidth()) { Text("Lưu sự kiện") }
+            if (canManageEvents) {
+                OutlinedTextField(dateText, { dateText = it }, Modifier.fillMaxWidth(), label = { Text("Ngày (dd/MM/yyyy)") }, singleLine = true)
+                OutlinedTextField(description, { description = it }, Modifier.fillMaxWidth(), label = { Text("Nội dung sự kiện") }, minLines = 2)
+                Button(onClick = {
+                    val date = runCatching { SimpleDateFormat("dd/MM/yyyy", Locale.US).apply { isLenient = false }.parse(dateText)?.time }.getOrNull()
+                    status = if (date == null) "Ngày không hợp lệ." else eventStore.add(date, description).fold({ description = ""; "Đã lưu sự kiện." }, { it.message })
+                }, modifier = Modifier.fillMaxWidth()) { Text("Lưu sự kiện") }
+            } else {
+                Text("Chỉ quản trị viên mới được thêm hoặc xóa diễn biến đặc biệt.", color = Color(0xFF61738B), fontSize = 12.sp)
+            }
         }
         items(events, key = { it.id }) { event ->
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -161,7 +165,7 @@ fun ReportsScreen(vehicles: List<Vehicle>, movements: List<VehicleMovement>, eve
                     Text(SimpleDateFormat("dd/MM/yyyy", Locale.US).format(Date(event.date)), fontSize = 12.sp, color = Color(0xFF61738B))
                     Text(event.description, fontSize = 14.sp)
                 }
-                TextButton(onClick = { eventStore.delete(event.id); selectedEvents = selectedEvents - event.id }) { Text("Xóa") }
+                if (canManageEvents) TextButton(onClick = { eventStore.delete(event.id); selectedEvents = selectedEvents - event.id }) { Text("Xóa") }
             }
         }
         item {

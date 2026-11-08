@@ -135,7 +135,7 @@ private fun QlbxApp() {
                     when (selected) {
                         "Nhập/Xuất" -> MovementScreen(store, yardStore, vehicles)
                         "Tìm xe" -> VehicleSearchScreen(store, yardStore, vehicles, readOnly = userRole == "viewer")
-                        "Báo cáo" -> ReportsScreen(vehicles, movements, eventStore)
+                        "Báo cáo" -> ReportsScreen(vehicles, movements, eventStore, canManageEvents = userRole in setOf("super_admin", "admin", "local_admin"))
                         "Sơ đồ bãi" -> YardScreen(yardStore, store, vehicles)
                         "Hệ thống" -> SettingsScreen(userEmail, userRole, store, yardStore, eventStore, vehicles) {
                             runCatching { FirebaseAuth.getInstance().signOut() }
@@ -294,10 +294,10 @@ private fun VehicleSearchScreen(store: VehicleStore, yard: YardStore, vehicles: 
             title = { Text("Thông tin xe • ${selected!!.plate ?: selected!!.vinLast6}") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(model, { model = it }, label = { Text("Dòng xe") }, singleLine = true)
-                    OutlinedTextField(color, { color = it }, label = { Text("Màu xe") }, singleLine = true)
-                    OutlinedTextField(department, { department = it }, label = { Text("Phòng ban") }, singleLine = true)
-                    OutlinedTextField(team, { team = it }, label = { Text("Đội / depot") }, singleLine = true)
+                    OutlinedTextField(model, { model = it }, label = { Text("Dòng xe") }, singleLine = true, enabled = !readOnly)
+                    OutlinedTextField(color, { color = it }, label = { Text("Màu xe") }, singleLine = true, enabled = !readOnly)
+                    OutlinedTextField(department, { department = it }, label = { Text("Phòng ban") }, singleLine = true, enabled = !readOnly)
+                    OutlinedTextField(team, { team = it }, label = { Text("Đội / depot") }, singleLine = true, enabled = !readOnly)
                     Text("Trạng thái: ${selected!!.status}. Chỉnh sửa được ghi vào nhật ký.", fontSize = 12.sp, color = Color(0xFF61738B))
                 }
             },
@@ -402,11 +402,15 @@ private fun SettingsScreen(email: String, role: String, store: VehicleStore, yar
         OutlinedButton(onClick = { scope.launch { status = runCatching { val cloud = FirebaseRepository().downloadAll(); store.replaceAll(cloud.vehicles, cloud.movements).getOrThrow(); yardStore.replaceAll(cloud.slots).getOrThrow(); eventStore.replaceAll(cloud.events).getOrThrow(); "Đã tải đầy đủ " + cloud.vehicles.size + " xe, nhật ký, sơ đồ và sự kiện từ Firebase." }.getOrElse { "Tải dữ liệu Firebase thất bại: " + it.message } } }, modifier = Modifier.fillMaxWidth()) { Text("Tải đầy đủ dữ liệu từ Firebase") }
         Text("DỮ LIỆU & SAO LƯU", color = Brand, fontWeight = FontWeight.Bold)
         Button(onClick = { exportXlsx.launch("QLBX_vehicles.xlsx") }, modifier = Modifier.fillMaxWidth()) { Text("Xuất danh sách xe Excel (.xlsx)") }
-        OutlinedButton(onClick = { importXlsx.launch(arrayOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) { Text("Nhập Excel (.xlsx) — xem trước") }
+        if (role in setOf("super_admin", "admin", "local_admin")) {
+            OutlinedButton(onClick = { importXlsx.launch(arrayOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) { Text("Nhập Excel (.xlsx) — xem trước") }
+        }
         OutlinedButton(onClick = { exportJson.launch("QLBX_backup_full.json") }, modifier = Modifier.fillMaxWidth()) { Text("Sao lưu đầy đủ JSON (xe + nhật ký + sơ đồ + sự kiện)") }
-        OutlinedButton(onClick = { importJson.launch(arrayOf("application/json", "text/json", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) { Text("Khôi phục JSON đầy đủ — xem trước") }
+        if (role in setOf("super_admin", "admin", "local_admin")) {
+            OutlinedButton(onClick = { importJson.launch(arrayOf("application/json", "text/json", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) { Text("Khôi phục JSON đầy đủ — xem trước") }
+        }
         if (status != null) Text(status!!, color = if (status!!.startsWith("Đã")) Color(0xFF16834A) else MaterialTheme.colorScheme.error, fontSize = 13.sp)
-        Text("Khôi phục JSON thay thế toàn bộ dữ liệu trên thiết bị sau khi xác nhận.", color = Color(0xFF61738B), fontSize = 12.sp)
+        if (role in setOf("super_admin", "admin", "local_admin")) Text("Khôi phục JSON thay thế toàn bộ dữ liệu trên thiết bị sau khi xác nhận.", color = Color(0xFF61738B), fontSize = 12.sp)
         OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) { Text("Đăng xuất") }
     }
     if (pendingRestore != null) {
