@@ -80,7 +80,7 @@ object VehicleFileManager {
                 currentSlotId = cell("currentSlotId").ifBlank { null }
             )
         }
-        val duplicate = imported.groupBy {
+        val duplicate = imported.filter { it.status != VehicleStatus.EXITED }.groupBy {
             if (it.identityType == IdentityType.PLATE) "P:${it.plate}" else "V:${it.vinLast6}"
         }.filterValues { it.size > 1 }
         require(duplicate.isEmpty()) { "Tệp có mã xe trùng nhau. Hãy xử lý trước khi nhập." }
