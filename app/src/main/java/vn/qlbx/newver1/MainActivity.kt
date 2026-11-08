@@ -54,24 +54,32 @@ private fun QlbxApp() {
     var selected by remember { mutableStateOf("Tổng quan") }
     var signedIn by remember { mutableStateOf(false) }
     var userEmail by remember { mutableStateOf("") }
+    var userRole by remember { mutableStateOf("local_admin") }
     val authPrefs = remember { context.getSharedPreferences("qlbx_auth", android.content.Context.MODE_PRIVATE) }
     val hasPreviousLogin = remember { authPrefs.getBoolean("has_authenticated", false) }
 
     LaunchedEffect(Unit) {
-        signedIn = runCatching {
-            FirebaseApp.getApps(context).isNotEmpty() &&
-                FirebaseAuth.getInstance().currentUser != null
-        }.getOrDefault(false)
-        if (signedIn) {
-            userEmail = runCatching { FirebaseAuth.getInstance().currentUser?.email.orEmpty() }.getOrDefault("")
-            SyncScheduler.schedule(context)
+        val currentUser = runCatching {
+            if (FirebaseApp.getApps(context).isNotEmpty()) FirebaseAuth.getInstance().currentUser else null
+        }.getOrNull()
+        if (currentUser != null) {
+            val access = runCatching { FirebaseRepository().currentAccess() }.getOrNull()
+            if (access != null) {
+                signedIn = true
+                userEmail = access.displayName
+                userRole = access.role
+                SyncScheduler.schedule(context)
+            } else {
+                runCatching { FirebaseAuth.getInstance().signOut() }
+                signedIn = false
+            }
         }
     }
 
     MaterialTheme(colorScheme = lightColorScheme(primary = Brand, background = Canvas, surface = Color.White, onBackground = Ink, onSurface = Ink)) {
         if (!signedIn) {
             LoginScreen(
-                onOffline = { signedIn = true },
+                onOffline = { userRole = "local_admin"; signedIn = true },
                 onLogin = { email, password, done ->
                     val configured = runCatching { FirebaseApp.getApps(context).isNotEmpty() }.getOrDefault(false)
                     if (!configured) done("Chưa có google-services.json trong app. Hãy cấu hình Firebase Android trước khi đăng nhập.")
@@ -83,6 +91,7 @@ private fun QlbxApp() {
                                         runCatching { FirebaseRepository().currentAccess() }
                                             .onSuccess { access ->
                                                 userEmail = access.displayName
+                                                userRole = access.role
                                                 authPrefs.edit().putBoolean("has_authenticated", true).apply()
                                                 signedIn = true
                                                 SyncScheduler.schedule(context)
@@ -99,7 +108,7 @@ private fun QlbxApp() {
                 }
             )
         } else {
-            val nav = listOf(
+            val allNav = listOf(
                 Triple("Tổng quan", Icons.Default.Home, "overview"),
                 Triple("Nhập/Xuất", Icons.Default.DirectionsCar, "movement"),
                 Triple("Sơ đồ bãi", Icons.Default.LocalParking, "yard"),
@@ -107,6 +116,7 @@ private fun QlbxApp() {
                 Triple("Báo cáo", Icons.Default.Assessment, "reports"),
                 Triple("Hệ thống", Icons.Default.Settings, "settings")
             )
+            val nav = if (userRole == "viewer") allNav.filter { it.first in setOf("Tổng quan", "Tìm xe", "Báo cáo") } else allNav
             Scaffold(
                 containerColor = Canvas,
                 bottomBar = {
@@ -124,10 +134,10 @@ private fun QlbxApp() {
                     Spacer(Modifier.height(14.dp))
                     when (selected) {
                         "Nhập/Xuất" -> MovementScreen(store, yardStore, vehicles)
-                        "Tìm xe" -> VehicleSearchScreen(store, yardStore, vehicles)
+                        "Tìm xe" -> VehicleSearchScreen(store, yardStore, vehicles, readOnly = userRole == "viewer")
                         "Báo cáo" -> ReportsScreen(vehicles, movements, eventStore)
                         "Sơ đồ bãi" -> YardScreen(yardStore, store, vehicles)
-                        "Hệ thống" -> SettingsScreen(userEmail, store, yardStore, eventStore, vehicles) {
+                        "Hệ thống" -> SettingsScreen(userEmail, userRole, store, yardStore, eventStore, vehicles) {
                             runCatching { FirebaseAuth.getInstance().signOut() }
                             userEmail = ""; signedIn = false
                         }
@@ -245,7 +255,7 @@ private fun MovementScreen(store: VehicleStore, yard: YardStore, vehicles: List<
 }
 
 @Composable
-private fun VehicleSearchScreen(store: VehicleStore, yard: YardStore, vehicles: List<Vehicle>) {
+private fun VehicleSearchScreen(store: VehicleStore, yard: YardStore, vehicles: List<Vehicle>, readOnly: Boolean = false) {
     var query by remember { mutableStateOf("") }
     var showAll by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<Vehicle?>(null) }
@@ -292,14 +302,18 @@ private fun VehicleSearchScreen(store: VehicleStore, yard: YardStore, vehicles: 
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    val result = store.update(selected!!.copy(model = model, color = color, department = department, team = team))
-                    message = result.fold({ "Đã cập nhật thông tin xe." }, { it.message ?: "Không thể cập nhật." })
-                    selected = null
-                }) { Text("Lưu thay đổi") }
+                if (readOnly) {
+                    TextButton(onClick = { selected = null }) { Text("Đóng") }
+                } else {
+                    TextButton(onClick = {
+                        val result = store.update(selected!!.copy(model = model, color = color, department = department, team = team))
+                        message = result.fold({ "Đã cập nhật thông tin xe." }, { it.message ?: "Không thể cập nhật." })
+                        selected = null
+                    }) { Text("Lưu thay đổi") }
+                }
             },
             dismissButton = {
-                Row {
+                if (!readOnly) Row {
                     TextButton(onClick = { deleteStage = 1 }) { Text("Xóa xe") }
                     TextButton(onClick = { selected = null }) { Text("Đóng") }
                 }
@@ -355,7 +369,7 @@ private fun YardPlaceholder(vehicles: List<Vehicle>) {
 }
 
 @Composable
-private fun SettingsScreen(email: String, store: VehicleStore, yardStore: YardStore, eventStore: SpecialEventStore, vehicles: List<Vehicle>, onLogout: () -> Unit) {
+private fun SettingsScreen(email: String, role: String, store: VehicleStore, yardStore: YardStore, eventStore: SpecialEventStore, vehicles: List<Vehicle>, onLogout: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     var pendingRestore by remember { mutableStateOf<AppBackup?>(null) }
@@ -382,7 +396,9 @@ private fun SettingsScreen(email: String, store: VehicleStore, yardStore: YardSt
         Text(email.ifBlank { "Chế độ ngoại tuyến — dữ liệu lưu trên thiết bị này" })
         Text("Dữ liệu xe hiện có: ${vehicles.size}", color = Color(0xFF61738B))
         Text("FIREBASE CLOUD", color = Brand, fontWeight = FontWeight.Bold)
-        OutlinedButton(onClick = { scope.launch { status = runCatching { "Đã đồng bộ " + FirebaseRepository().syncAll(AppBackup(vehicles, store.movements.value, yardStore.slots.value, eventStore.events.value)) + " mục dữ liệu lên Firebase." }.getOrElse { "Đồng bộ lên Firebase thất bại: " + it.message } } }, modifier = Modifier.fillMaxWidth()) { Text("Đồng bộ đầy đủ dữ liệu lên Firebase") }
+        if (role in setOf("super_admin", "admin", "local_admin")) {
+            OutlinedButton(onClick = { scope.launch { status = runCatching { "Đã đồng bộ " + FirebaseRepository().syncAll(AppBackup(vehicles, store.movements.value, yardStore.slots.value, eventStore.events.value)) + " mục dữ liệu lên Firebase." }.getOrElse { "Đồng bộ lên Firebase thất bại: " + it.message } } }, modifier = Modifier.fillMaxWidth()) { Text("Đồng bộ đầy đủ dữ liệu lên Firebase") }
+        }
         OutlinedButton(onClick = { scope.launch { status = runCatching { val cloud = FirebaseRepository().downloadAll(); store.replaceAll(cloud.vehicles, cloud.movements).getOrThrow(); yardStore.replaceAll(cloud.slots).getOrThrow(); eventStore.replaceAll(cloud.events).getOrThrow(); "Đã tải đầy đủ " + cloud.vehicles.size + " xe, nhật ký, sơ đồ và sự kiện từ Firebase." }.getOrElse { "Tải dữ liệu Firebase thất bại: " + it.message } } }, modifier = Modifier.fillMaxWidth()) { Text("Tải đầy đủ dữ liệu từ Firebase") }
         Text("DỮ LIỆU & SAO LƯU", color = Brand, fontWeight = FontWeight.Bold)
         Button(onClick = { exportXlsx.launch("QLBX_vehicles.xlsx") }, modifier = Modifier.fillMaxWidth()) { Text("Xuất danh sách xe Excel (.xlsx)") }
