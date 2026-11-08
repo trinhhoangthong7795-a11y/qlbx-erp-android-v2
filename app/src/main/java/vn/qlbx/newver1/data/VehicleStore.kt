@@ -58,7 +58,9 @@ class VehicleStore(context: Context) {
         if (replacement.map { it.id }.distinct().size != replacement.size) return Result.failure(IllegalArgumentException("Tệp có ID xe trùng nhau."))
         val activeKeys = replacement.filter { it.status != VehicleStatus.EXITED }.map { if (it.identityType == IdentityType.PLATE) "P:${it.plate?.uppercase()}" else "V:${it.vinLast6}" }
         if (activeKeys.distinct().size != activeKeys.size) return Result.failure(IllegalArgumentException("Có xe đang trong bãi bị trùng biển số/VIN."))
-        mutableVehicles.value = replacement.sortedByDescending { it.entryAt }
+        mutableVehicles.value = replacement.map { vehicle ->
+            if (vehicle.status == VehicleStatus.EXITED) vehicle.copy(currentSlotId = null) else vehicle
+        }.sortedByDescending { it.entryAt }
         mutableMovements.value = movementHistory.sortedByDescending { it.occurredAt }
         persist()
         return Result.success(Unit)
