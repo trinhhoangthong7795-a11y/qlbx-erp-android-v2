@@ -18,7 +18,8 @@ object ReportExporter {
         vehicles: List<Vehicle>,
         movements: List<VehicleMovement>,
         events: List<SpecialEvent>,
-        selectedEventIds: Set<String>
+        selectedEventIds: Set<String>,
+        period: String = "Ngày"
     ) {
         val width = 1080
         val height = 1500
@@ -68,7 +69,7 @@ object ReportExporter {
             canvas.drawRoundRect(300f, y, 300f + bar, y + 38f, 12f, 12f, paint)
             text(pair.second.toString(), 930f, y + 28f, 20f, brand, true)
         }
-        text("DIỄN BIẾN NHẬP / XUẤT", 60f, 900f, 24f, brand, true)
+        text("DIỄN BIẾN NHẬP / XUẤT • $period", 60f, 900f, 24f, brand, true)
         fun dayBounds(offset: Int): Pair<Long, Long> {
             val calendar = Calendar.getInstance()
             calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0)
@@ -91,9 +92,35 @@ object ReportExporter {
                 movements.none { it.vehicleId == v.id && it.action == "EXIT" && it.occurredAt >= start && it.occurredAt < end } }
             return logged + imported
         }
-        val days = (6 downTo 0).map { offset ->
-            val (dayStart, dayEnd) = dayBounds(offset)
-            Triple(dayStart, countEntries(dayStart, dayEnd), countExits(dayStart, dayEnd))
+        val chartRanges: List<Triple<String, Long, Long>> = when (period) {
+            "Tuần" -> (3 downTo 0).map { offset ->
+                val calendar = Calendar.getInstance()
+                calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0)
+                val daysSinceMonday = (calendar.get(Calendar.DAY_OF_WEEK) + 5) % 7
+                calendar.add(Calendar.DAY_OF_MONTH, -daysSinceMonday)
+                calendar.add(Calendar.WEEK_OF_YEAR, -offset)
+                val start = calendar.timeInMillis
+                calendar.add(Calendar.WEEK_OF_YEAR, 1)
+                Triple("Tuần " + SimpleDateFormat("dd/MM", Locale.US).format(Date(start)), start, calendar.timeInMillis)
+            }
+            "Tháng" -> (5 downTo 0).map { offset ->
+                val calendar = Calendar.getInstance()
+                calendar.set(Calendar.DAY_OF_MONTH, 1)
+                calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0)
+                calendar.add(Calendar.MONTH, -offset)
+                val start = calendar.timeInMillis
+                calendar.add(Calendar.MONTH, 1)
+                Triple(SimpleDateFormat("MMM yy", Locale("vi", "VN")).format(Date(start)), start, calendar.timeInMillis)
+            }
+            else -> (6 downTo 0).map { offset ->
+                val (start, end) = dayBounds(offset)
+                Triple(SimpleDateFormat("dd/MM", Locale.US).format(Date(start)), start, end)
+            }
+        }
+        val days = chartRanges.map { bucket ->
+            Triple(bucket.first, countEntries(bucket.second, bucket.third), countExits(bucket.second, bucket.third))
         }
         days.forEachIndexed { i, d ->
             val x = 85f + i * 140f
@@ -104,7 +131,7 @@ object ReportExporter {
             canvas.drawRect(x, 1150f - entryHeight, x + 35f, 1150f, paint)
             paint.color = android.graphics.Color.rgb(225, 139, 45)
             canvas.drawRect(x + 42f, 1150f - exitHeight, x + 77f, 1150f, paint)
-            text(SimpleDateFormat("dd/MM", Locale.US).format(Date(d.first)), x - 5f, 1185f, 16f)
+            text(d.first, x - 5f, 1185f, 16f)
         }
         text("Xanh: nhập bãi     Cam: xuất bãi", 70f, 1225f, 17f)
         text("DIỄN BIẾN ĐẶC BIỆT", 60f, 1290f, 24f, brand, true)

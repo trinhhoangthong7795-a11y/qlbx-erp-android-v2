@@ -33,7 +33,7 @@ fun ReportsScreen(vehicles: List<Vehicle>, movements: List<VehicleMovement>, eve
     var status by remember { mutableStateOf<String?>(null) }
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/png")) { uri ->
         if (uri != null) status = runCatching {
-            ReportExporter.exportPng(context.contentResolver, uri, vehicles, movements, events, selectedEvents)
+            ReportExporter.exportPng(context.contentResolver, uri, vehicles, movements, events, selectedEvents, chartPeriod)
             "Đã xuất ảnh báo cáo PNG 1080px."
         }.getOrElse { "Xuất báo cáo thất bại: ${it.message}" }
     }
