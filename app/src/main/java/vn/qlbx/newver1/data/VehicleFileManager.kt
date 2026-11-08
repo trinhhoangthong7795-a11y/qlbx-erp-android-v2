@@ -8,6 +8,11 @@ import org.json.JSONObject
 import org.xmlpull.v1.XmlPullParser
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.Locale
+import kotlin.math.floor
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -60,10 +65,16 @@ object VehicleFileManager {
                 ?: error("Dòng ${i + 2}: ${(validated as VehicleValidation.Invalid).message}")
             val status = runCatching { VehicleStatus.valueOf(cell("status")) }
                 .getOrElse { error("Dòng ${i + 2}: status không hợp lệ.") }
+            val entryRaw = cell("entryAt")
+            val entryAt = if (entryRaw.isBlank()) base.entryAt else parseTimestamp(entryRaw)
+                ?: error("Dòng ${i + 2}: thời điểm nhập không hợp lệ.")
+            val exitRaw = cell("exitAt")
+            val exitAt = if (exitRaw.isBlank()) null else parseTimestamp(exitRaw)
+                ?: error("Dòng ${i + 2}: thời điểm xuất không hợp lệ.")
             base.copy(
                 id = cell("id").ifBlank { base.id },
-                entryAt = cell("entryAt").toLongOrNull() ?: base.entryAt,
-                exitAt = cell("exitAt").toLongOrNull(),
+                entryAt = entryAt,
+                exitAt = exitAt,
                 exitPerson = cell("exitPerson"),
                 status = status,
                 currentSlotId = cell("currentSlotId").ifBlank { null }
@@ -118,6 +129,34 @@ object VehicleFileManager {
         }
         require(result.map { it.id }.distinct().size == result.size) { "Bản sao lưu có ID xe bị trùng." }
         return result
+    }
+
+    private fun parseTimestamp(raw: String): Long? {
+        val value = raw.trim()
+        if (value.isEmpty()) return null
+        val numeric = value.toDoubleOrNull()
+        if (numeric != null) {
+            if (numeric >= 100_000_000_000.0) return numeric.toLong()
+            if (numeric >= 1_000_000_000.0) return (numeric * 1000.0).toLong()
+            if (numeric in 20_000.0..100_000.0) {
+                val wholeDays = floor(numeric).toLong()
+                val fractionalDay = numeric - wholeDays
+                val localDate = LocalDate.of(1899, 12, 30).plusDays(wholeDays)
+                return localDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() +
+                    (fractionalDay * 86_400_000.0).toLong()
+            }
+        }
+        val patterns = listOf(
+            "dd/MM/yyyy HH:mm:ss", "dd/MM/yyyy HH:mm", "dd/MM/yyyy",
+            "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
+            "yyyy-MM-dd'T'HH:mm:ss", "MM/dd/yyyy HH:mm:ss", "MM/dd/yyyy"
+        )
+        for (pattern in patterns) {
+            val formatter = SimpleDateFormat(pattern, Locale("vi", "VN")).apply { isLenient = false }
+            val parsed = runCatching { formatter.parse(value)?.time }.getOrNull()
+            if (parsed != null) return parsed
+        }
+        return null
     }
 
     private fun unzip(bytes: ByteArray): Map<String, ByteArray> {
