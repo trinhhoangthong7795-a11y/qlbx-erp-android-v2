@@ -20,6 +20,9 @@ fun YardScreen(yard: YardStore, vehicleStore: VehicleStore, vehicles: List<Vehic
     val slots by yard.slots.collectAsState()
     var selectedSlot by remember { mutableStateOf<YardSlot?>(null) }
     var showWaiting by remember { mutableStateOf(false) }
+    var showMoveSlots by remember { mutableStateOf(false) }
+    var movingVehicleId by remember { mutableStateOf<String?>(null) }
+    var movingFromLabel by remember { mutableStateOf("") }
     var feedback by remember { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -113,6 +116,12 @@ fun YardScreen(yard: YardStore, vehicleStore: VehicleStore, vehicles: List<Vehic
             dismissButton = {
                 Row {
                     TextButton(onClick = {
+                        movingVehicleId = vehicle?.id
+                        movingFromLabel = slot.label
+                        selectedSlot = null
+                        showMoveSlots = movingVehicleId != null
+                    }, enabled = vehicle != null) { Text("Chuyển ô") }
+                    TextButton(onClick = {
                         val result = vehicle?.let { vehicleStore.exit(it.id) }
                         if (result?.isSuccess == true) yard.clearVehicle(vehicle!!.id)
                         feedback = result?.fold({ "Đã xuất bãi: " + (it.plate ?: it.vinLast6) }, { it.message ?: "Không thể xuất xe." })
@@ -121,6 +130,27 @@ fun YardScreen(yard: YardStore, vehicleStore: VehicleStore, vehicles: List<Vehic
                     TextButton(onClick = { selectedSlot = null }) { Text("Đóng") }
                 }
             }
+        )
+    }
+    if (showMoveSlots) {
+        val targets = slots.filter { it.active && it.vehicleId == null }
+        AlertDialog(
+            onDismissRequest = { showMoveSlots = false; movingVehicleId = null },
+            title = { Text("Chuyển xe từ $movingFromLabel") },
+            text = {
+                if (targets.isEmpty()) Text("Không có ô trống để chuyển xe.")
+                else LazyColumn(Modifier.heightIn(max = 360.dp)) {
+                    items(targets, key = { it.id }) { target ->
+                        TextButton(onClick = {
+                            val result = movingVehicleId?.let { yard.assign(target.id, it, vehicleStore) }
+                            feedback = result?.fold({ "Đã chuyển xe từ $movingFromLabel sang ${target.label}." }, { it.message ?: "Không thể chuyển ô." })
+                            showMoveSlots = false
+                            movingVehicleId = null
+                        }, modifier = Modifier.fillMaxWidth()) { Text(target.label) }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showMoveSlots = false; movingVehicleId = null }) { Text("Đóng") } }
         )
     }
 }
