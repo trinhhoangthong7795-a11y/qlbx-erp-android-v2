@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun QlbxApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
     val store = remember { VehicleStore(context) }
     val yardStore = remember { YardStore(context) }
     val eventStore = remember { SpecialEventStore(context) }
@@ -61,7 +62,10 @@ private fun QlbxApp() {
             FirebaseApp.getApps(context).isNotEmpty() &&
                 FirebaseAuth.getInstance().currentUser != null
         }.getOrDefault(false)
-        if (signedIn) userEmail = runCatching { FirebaseAuth.getInstance().currentUser?.email.orEmpty() }.getOrDefault("")
+        if (signedIn) {
+            userEmail = runCatching { FirebaseAuth.getInstance().currentUser?.email.orEmpty() }.getOrDefault("")
+            SyncScheduler.schedule(context)
+        }
     }
 
     MaterialTheme(colorScheme = lightColorScheme(primary = Brand, background = Canvas, surface = Color.White, onBackground = Ink, onSurface = Ink)) {
@@ -74,7 +78,22 @@ private fun QlbxApp() {
                     else runCatching { FirebaseAuth.getInstance() }
                         .onSuccess { auth ->
                             auth.signInWithEmailAndPassword(email.trim(), password)
-                                .addOnSuccessListener { userEmail = it.user?.email.orEmpty(); authPrefs.edit().putBoolean("has_authenticated", true).apply(); signedIn = true; done(null) }
+                                .addOnSuccessListener {
+                                    scope.launch {
+                                        runCatching { FirebaseRepository().currentAccess() }
+                                            .onSuccess { access ->
+                                                userEmail = access.displayName
+                                                authPrefs.edit().putBoolean("has_authenticated", true).apply()
+                                                signedIn = true
+                                                SyncScheduler.schedule(context)
+                                                done(null)
+                                            }
+                                            .onFailure { error ->
+                                                auth.signOut()
+                                                done(error.localizedMessage ?: "Tài khoản chưa được cấp quyền trong QLBX ERP.")
+                                            }
+                                    }
+                                }
                                 .addOnFailureListener { done(it.localizedMessage ?: "Đăng nhập thất bại.") }
                         }.onFailure { done(it.localizedMessage ?: "Không khởi tạo được Firebase.") }
                 }
@@ -360,7 +379,7 @@ private fun SettingsScreen(email: String, store: VehicleStore, yardStore: YardSt
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize()) {
         Text("Tài khoản", fontWeight = FontWeight.Bold)
-        Text(email.ifBlank { "Phiên ngoại tuyến đã xác thực trước đó" })
+        Text(email.ifBlank { "Chế độ ngoại tuyến — dữ liệu lưu trên thiết bị này" })
         Text("Dữ liệu xe hiện có: ${vehicles.size}", color = Color(0xFF61738B))
         Text("FIREBASE CLOUD", color = Brand, fontWeight = FontWeight.Bold)
         OutlinedButton(onClick = { scope.launch { status = runCatching { "Đã đồng bộ " + FirebaseRepository().syncAll(AppBackup(vehicles, store.movements.value, yardStore.slots.value, eventStore.events.value)) + " mục dữ liệu lên Firebase." }.getOrElse { "Đồng bộ lên Firebase thất bại: " + it.message } } }, modifier = Modifier.fillMaxWidth()) { Text("Đồng bộ đầy đủ dữ liệu lên Firebase") }
