@@ -69,9 +69,22 @@ class VehicleStore(context: Context) {
         if (VehicleRules.isDuplicateActive(updated, mutableVehicles.value)) return Result.failure(IllegalStateException("Biển số/VIN đang được xe khác sử dụng trong bãi."))
         val saved = updated.copy(updatedAt = System.currentTimeMillis())
         mutableVehicles.value = mutableVehicles.value.map { if (it.id == old.id) saved else it }
+        val changes = buildList {
+            if (old.plate != saved.plate) add("biển số: '${old.plate.orEmpty()}' → '${saved.plate.orEmpty()}'")
+            if (old.vinLast6 != saved.vinLast6) add("VIN: '${old.vinLast6.orEmpty()}' → '${saved.vinLast6.orEmpty()}'")
+            if (old.model != saved.model) add("dòng xe: '${old.model}' → '${saved.model}'")
+            if (old.color != saved.color) add("màu: '${old.color}' → '${saved.color}'")
+            if (old.department != saved.department) add("phòng ban: '${old.department}' → '${saved.department}'")
+            if (old.team != saved.team) add("đội/depot: '${old.team}' → '${saved.team}'")
+            if (old.entryPerson != saved.entryPerson) add("người nhập: '${old.entryPerson}' → '${saved.entryPerson}'")
+            if (old.exitPerson != saved.exitPerson) add("người xuất: '${old.exitPerson}' → '${saved.exitPerson}'")
+            if (old.status != saved.status) add("trạng thái: ${old.status} → ${saved.status}")
+            if (old.entryAt != saved.entryAt) add("thời điểm nhập: ${old.entryAt} → ${saved.entryAt}")
+            if (old.exitAt != saved.exitAt) add("thời điểm xuất: ${old.exitAt ?: "chưa có"} → ${saved.exitAt ?: "chưa có"}")
+        }
         mutableMovements.value = listOf(VehicleMovement(
             vehicleId = saved.id, action = "EDIT", identifier = saved.plate ?: saved.vinLast6.orEmpty(),
-            model = saved.model, note = "Cập nhật thông tin xe; trạng thái: ${old.status} → ${saved.status}"
+            model = saved.model, note = if (changes.isEmpty()) "Lưu thông tin xe; không phát hiện thay đổi trường dữ liệu." else "Thay đổi: ${changes.joinToString("; ")}"
         )) + mutableMovements.value
         persist()
         return Result.success(saved)
