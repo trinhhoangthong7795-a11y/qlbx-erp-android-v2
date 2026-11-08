@@ -71,7 +71,7 @@ private fun QlbxApp() {
     MaterialTheme(colorScheme = lightColorScheme(primary = Brand, background = Canvas, surface = Color.White, onBackground = Ink, onSurface = Ink)) {
         if (!signedIn) {
             LoginScreen(
-                onOffline = { if (hasPreviousLogin) signedIn = true },
+                onOffline = { signedIn = true },
                 onLogin = { email, password, done ->
                     val configured = runCatching { FirebaseApp.getApps(context).isNotEmpty() }.getOrDefault(false)
                     if (!configured) done("Chưa có google-services.json trong app. Hãy cấu hình Firebase Android trước khi đăng nhập.")
