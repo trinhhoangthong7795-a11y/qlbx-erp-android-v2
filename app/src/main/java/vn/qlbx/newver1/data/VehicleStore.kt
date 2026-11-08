@@ -1,11 +1,17 @@
 package vn.qlbx.newver1.data
 
 import android.content.Context
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+
+private fun formatAuditTime(timestamp: Long?): String =
+    timestamp?.let { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("vi", "VN")).format(Date(it)) } ?: "chưa có"
 
 class VehicleStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("qlbx_local_v1", Context.MODE_PRIVATE)
@@ -82,8 +88,8 @@ class VehicleStore(context: Context) {
             if (old.entryPerson != saved.entryPerson) add("người nhập: '${old.entryPerson}' → '${saved.entryPerson}'")
             if (old.exitPerson != saved.exitPerson) add("người xuất: '${old.exitPerson}' → '${saved.exitPerson}'")
             if (old.status != saved.status) add("trạng thái: ${old.status} → ${saved.status}")
-            if (old.entryAt != saved.entryAt) add("thời điểm nhập: ${old.entryAt} → ${saved.entryAt}")
-            if (old.exitAt != saved.exitAt) add("thời điểm xuất: ${old.exitAt ?: "chưa có"} → ${saved.exitAt ?: "chưa có"}")
+            if (old.entryAt != saved.entryAt) add("thời điểm nhập: ${formatAuditTime(old.entryAt)} → ${formatAuditTime(saved.entryAt)}")
+            if (old.exitAt != saved.exitAt) add("thời điểm xuất: ${formatAuditTime(old.exitAt)} → ${formatAuditTime(saved.exitAt)}")
         }
         mutableMovements.value = listOf(VehicleMovement(
             vehicleId = saved.id, action = "EDIT", identifier = saved.plate ?: saved.vinLast6.orEmpty(),
