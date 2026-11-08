@@ -256,8 +256,17 @@ private fun MovementScreen(store: VehicleStore, yard: YardStore, vehicles: List<
 
 @Composable
 private fun VehicleSearchScreen(store: VehicleStore, yard: YardStore, vehicles: List<Vehicle>, readOnly: Boolean = false) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var query by remember { mutableStateOf("") }
     var showAll by remember { mutableStateOf(false) }
+    var exportMessage by remember { mutableStateOf<String?>(null) }
+    val filteredVehicles = store.search(query).filter { showAll || it.status != VehicleStatus.EXITED }
+    val exportFiltered = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) { uri ->
+        if (uri != null) exportMessage = runCatching {
+            VehicleFileManager.exportXlsx(context.contentResolver, uri, filteredVehicles)
+            "Đã xuất ${filteredVehicles.size} xe theo bộ lọc hiện tại."
+        }.getOrElse { "Xuất Excel thất bại: ${it.message}" }
+    }
     var selected by remember { mutableStateOf<Vehicle?>(null) }
     var model by remember { mutableStateOf("") }
     var color by remember { mutableStateOf("") }
@@ -271,9 +280,13 @@ private fun VehicleSearchScreen(store: VehicleStore, yard: YardStore, vehicles: 
             Text("Quản lý xe • ${vehicles.size} bản ghi", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             TextButton(onClick = { showAll = !showAll }) { Text(if (showAll) "Chỉ xe trong bãi" else "Tất cả") }
         }
+        OutlinedButton(onClick = { exportFiltered.launch("QLBX_ket_qua_tim_kiem.xlsx") }, modifier = Modifier.fillMaxWidth()) {
+            Text("Xuất kết quả hiện tại ra Excel")
+        }
+        if (exportMessage != null) Text(exportMessage!!, color = if (exportMessage!!.startsWith("Đã")) Color(0xFF16834A) else MaterialTheme.colorScheme.error, fontSize = 12.sp)
         if (message != null) Text(message!!, color = Color(0xFF16834A), fontSize = 12.sp)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(store.search(query).filter { showAll || it.status != VehicleStatus.EXITED }, key = { it.id }) { v ->
+            items(filteredVehicles, key = { it.id }) { v ->
                 Card(colors = CardDefaults.cardColors(containerColor = Color.White), onClick = {
                     selected = v; model = v.model; color = v.color; department = v.department; team = v.team
                 }) {
