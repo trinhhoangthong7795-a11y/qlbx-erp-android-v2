@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import vn.qlbx.newver1.data.*
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Calendar
 import java.util.Locale
 
 @Composable
@@ -36,6 +37,28 @@ fun ReportsScreen(vehicles: List<Vehicle>, movements: List<VehicleMovement>, eve
         }.getOrElse { "Xuất báo cáo thất bại: ${it.message}" }
     }
     val now = System.currentTimeMillis()
+    fun dayBounds(offset: Int): Pair<Long, Long> {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0)
+        calendar.add(Calendar.DAY_OF_MONTH, -offset)
+        val start = calendar.timeInMillis
+        calendar.add(Calendar.DAY_OF_MONTH, 1)
+        return start to calendar.timeInMillis
+    }
+    fun countEntries(start: Long, end: Long): Int {
+        val logged = movements.count { it.action == "ENTRY" && it.occurredAt >= start && it.occurredAt < end }
+        val imported = vehicles.count { v -> v.entryAt >= start && v.entryAt < end &&
+            movements.none { it.vehicleId == v.id && it.action == "ENTRY" && it.occurredAt >= start && it.occurredAt < end } }
+        return logged + imported
+    }
+    fun countExits(start: Long, end: Long): Int {
+        val logged = movements.count { it.action == "EXIT" && it.occurredAt >= start && it.occurredAt < end }
+        val imported = vehicles.count { v -> v.status == VehicleStatus.EXITED &&
+            v.exitAt?.let { it >= start && it < end } == true &&
+            movements.none { it.vehicleId == v.id && it.action == "EXIT" && it.occurredAt >= start && it.occurredAt < end } }
+        return logged + imported
+    }
     val inside = vehicles.filter { it.status != VehicleStatus.EXITED }
     val ages = listOf(
         "0–10 ngày" to inside.count { (now - it.entryAt) / 86400000L <= 10 },
@@ -63,10 +86,9 @@ fun ReportsScreen(vehicles: List<Vehicle>, movements: List<VehicleMovement>, eve
         }
         item { Text("Nhập / xuất trong 7 ngày gần nhất", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
         items((6 downTo 0).toList()) { offset ->
-            val dayStart = (now - offset * 86400000L).let { it - it % 86400000L }
-            val dayEnd = dayStart + 86400000L
-            val inCount = movements.count { it.action == "ENTRY" && it.occurredAt in dayStart until dayEnd }
-            val outCount = movements.count { it.action == "EXIT" && it.occurredAt in dayStart until dayEnd }
+            val (dayStart, dayEnd) = dayBounds(offset)
+            val inCount = countEntries(dayStart, dayEnd)
+            val outCount = countExits(dayStart, dayEnd)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(SimpleDateFormat("dd/MM", Locale.US).format(Date(dayStart)), modifier = Modifier.width(56.dp), fontSize = 12.sp)
                 Text("Nhập $inCount", color = Color(0xFF16834A), modifier = Modifier.weight(1f), fontSize = 12.sp)

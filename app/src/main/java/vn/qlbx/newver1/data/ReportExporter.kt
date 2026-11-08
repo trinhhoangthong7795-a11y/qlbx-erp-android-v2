@@ -8,6 +8,7 @@ import android.graphics.Typeface
 import android.net.Uri
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Calendar
 import java.util.Locale
 
 object ReportExporter {
@@ -68,13 +69,31 @@ object ReportExporter {
             text(pair.second.toString(), 930f, y + 28f, 20f, brand, true)
         }
         text("DIỄN BIẾN NHẬP / XUẤT", 60f, 900f, 24f, brand, true)
+        fun dayBounds(offset: Int): Pair<Long, Long> {
+            val calendar = Calendar.getInstance()
+            calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0)
+            calendar.add(Calendar.DAY_OF_MONTH, -offset)
+            val start = calendar.timeInMillis
+            calendar.add(Calendar.DAY_OF_MONTH, 1)
+            return start to calendar.timeInMillis
+        }
+        fun countEntries(start: Long, end: Long): Int {
+            val logged = movements.count { it.action == "ENTRY" && it.occurredAt >= start && it.occurredAt < end }
+            val imported = vehicles.count { v -> v.entryAt >= start && v.entryAt < end &&
+                movements.none { it.vehicleId == v.id && it.action == "ENTRY" && it.occurredAt >= start && it.occurredAt < end } }
+            return logged + imported
+        }
+        fun countExits(start: Long, end: Long): Int {
+            val logged = movements.count { it.action == "EXIT" && it.occurredAt >= start && it.occurredAt < end }
+            val imported = vehicles.count { v -> v.status == VehicleStatus.EXITED &&
+                v.exitAt?.let { it >= start && it < end } == true &&
+                movements.none { it.vehicleId == v.id && it.action == "EXIT" && it.occurredAt >= start && it.occurredAt < end } }
+            return logged + imported
+        }
         val days = (6 downTo 0).map { offset ->
-            val start = now - offset * 86400000L
-            val dayStart = start - (start % 86400000L)
-            val dayEnd = dayStart + 86400000L
-            val entries = movements.count { it.action == "ENTRY" && it.occurredAt in dayStart until dayEnd }
-            val exits = movements.count { it.action == "EXIT" && it.occurredAt in dayStart until dayEnd }
-            Triple(dayStart, entries, exits)
+            val (dayStart, dayEnd) = dayBounds(offset)
+            Triple(dayStart, countEntries(dayStart, dayEnd), countExits(dayStart, dayEnd))
         }
         days.forEachIndexed { i, d ->
             val x = 85f + i * 140f
