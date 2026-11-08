@@ -398,6 +398,9 @@ private fun LoginScreen(onOffline: () -> Unit, onLogin: (String, String, (String
     var password by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
+    var confirmLocalMode by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val hasPreviousLogin = remember { context.getSharedPreferences("qlbx_auth", android.content.Context.MODE_PRIVATE).getBoolean("has_authenticated", false) }
     Surface(color = Canvas, modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
             Text("QLBX ERP", color = Brand, fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -416,7 +419,29 @@ private fun LoginScreen(onOffline: () -> Unit, onLogin: (String, String, (String
             }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(54.dp)) {
                 if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text("Đăng nhập")
             }
-            if (androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("qlbx_auth", android.content.Context.MODE_PRIVATE).getBoolean("has_authenticated", false)) { TextButton(onClick = onOffline, modifier = Modifier.fillMaxWidth()) { Text("Tiếp tục ngoại tuyến") } }
+            TextButton(
+                onClick = { if (hasPreviousLogin) onOffline() else confirmLocalMode = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (hasPreviousLogin) "Tiếp tục ngoại tuyến" else "Dùng ngoại tuyến trên thiết bị này")
+            }
+            Text(
+                "Chế độ ngoại tuyến lưu dữ liệu trên điện thoại này; đồng bộ đám mây cần cấu hình Firebase và đăng nhập.",
+                color = Color(0xFF61738B), fontSize = 12.sp
+            )
         }
+    }
+    if (confirmLocalMode) {
+        AlertDialog(
+            onDismissRequest = { confirmLocalMode = false },
+            title = { Text("Bắt đầu chế độ ngoại tuyến?") },
+            text = { Text("Bạn có thể dùng các chức năng cục bộ ngay trên thiết bị này. Chưa cần tài khoản Firebase, nhưng dữ liệu sẽ không tự đồng bộ sang thiết bị khác. Hãy sao lưu JSON định kỳ.") },
+            confirmButton = {
+                TextButton(onClick = { confirmLocalMode = false; onOffline() }) { Text("TIẾP TỤC") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmLocalMode = false }) { Text("HỦY") }
+            }
+        )
     }
 }
